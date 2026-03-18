@@ -22,8 +22,6 @@ import androidx.compose.ui.unit.sp
 import com.example.fewstep.ui.viewmodel.AuthViewModel
 import com.example.fewstep.ui.viewmodel.AuthState
 import com.example.fewstep.ui.viewmodel.HomeViewModel
-import java.text.SimpleDateFormat
-import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,17 +29,13 @@ fun ProfileScreen(
     authViewModel: AuthViewModel,
     homeViewModel: HomeViewModel,
     onLogout: () -> Unit,
+    onLeaderboardClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
     val authState by authViewModel.authState.collectAsState()
     val user by homeViewModel.userData.collectAsState()
-    val xpHistory by homeViewModel.xpHistory.collectAsState()
-    
     val userName = user?.name ?: (authState as? AuthState.Success)?.user?.displayName ?: "Champion"
     val userEmail = (authState as? AuthState.Success)?.user?.email ?: "user@example.com"
-    
-    var showAllHistory by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
 
     Scaffold(
         topBar = {
@@ -87,36 +81,37 @@ fun ProfileScreen(
                 }
             }
 
-            // XP History Section
+            // Leaderboard Section
             item {
-                Text(
-                    text = "XP History",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF1A237E),
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                )
-            }
-
-            if (xpHistory.isEmpty()) {
-                item {
-                    NoHistoryCard()
-                }
-            } else {
-                // Show latest 5
-                items(xpHistory.take(5)) { log ->
-                    XpHistoryItem(log)
-                }
-                
-                if (xpHistory.size > 5) {
-                    item {
-                        TextButton(
-                            onClick = { showAllHistory = true },
-                            modifier = Modifier.fillMaxWidth()
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    onClick = onLeaderboardClick
+                ) {
+                    Row(
+                        modifier = Modifier.padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(48.dp),
+                            shape = CircleShape,
+                            color = Color(0xFFFFF9C4)
                         ) {
-                            Text("View All History", fontWeight = FontWeight.Bold, color = Color(0xFF1A237E))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, modifier = Modifier.size(16.dp))
+                            Icon(
+                                Icons.Default.EmojiEvents, 
+                                null, 
+                                tint = Color(0xFFFBC02D), 
+                                modifier = Modifier.padding(10.dp)
+                            )
                         }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Global Leaderboard", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A237E))
+                            Text("See where you stand globally", fontSize = 12.sp, color = Color.Gray)
+                        }
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color.LightGray)
                     }
                 }
             }
@@ -139,49 +134,6 @@ fun ProfileScreen(
             }
         }
 
-        if (showAllHistory) {
-            ModalBottomSheet(
-                onDismissRequest = { showAllHistory = false },
-                sheetState = sheetState,
-                containerColor = Color(0xFFF5F7FA)
-            ) {
-                Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
-                    Text(
-                        "Total XP History", 
-                        fontSize = 20.sp, 
-                        fontWeight = FontWeight.Black, 
-                        color = Color(0xFF1A237E),
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(xpHistory) { log ->
-                            XpHistoryItem(log)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun NoHistoryCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp).fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(Icons.Default.History, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
-            Spacer(modifier = Modifier.height(12.dp))
-            Text("No history yet", color = Color.Gray, fontSize = 14.sp)
-        }
     }
 }
 
@@ -255,34 +207,3 @@ fun StatCard(modifier: Modifier, label: String, value: String, icon: ImageVector
     }
 }
 
-@Composable
-fun XpHistoryItem(log: com.example.fewstep.data.model.XpLog) {
-    val sdf = remember { SimpleDateFormat("MMM dd, h:mm a", Locale.getDefault()) }
-    val time = remember(log.timestamp) { sdf.format(Date(log.timestamp)) }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.size(40.dp),
-                shape = RoundedCornerShape(10.dp),
-                color = Color(0xFFE8F5E9)
-            ) {
-                Icon(Icons.Default.Add, null, tint = Color(0xFF43A047), modifier = Modifier.padding(8.dp))
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(log.reason, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A237E))
-                Text(time, fontSize = 12.sp, color = Color.Gray)
-            }
-            Text("+${log.amount} XP", fontWeight = FontWeight.Black, color = Color(0xFFFFA000), fontSize = 14.sp)
-        }
-    }
-}

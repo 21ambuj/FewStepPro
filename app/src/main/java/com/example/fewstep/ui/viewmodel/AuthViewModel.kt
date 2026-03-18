@@ -5,10 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.fewstep.data.model.User
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 sealed class AuthState {
     object Idle : AuthState()
@@ -62,9 +64,29 @@ class AuthViewModel : ViewModel() {
         auth.createUserWithEmailAndPassword(email, pass)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    val user = auth.currentUser
-                    if (user != null) {
-                        _authState.value = AuthState.Success(user)
+                    val firebaseUser = auth.currentUser
+                    if (firebaseUser != null) {
+                        viewModelScope.launch {
+                            try {
+                                val userObj = User(
+                                    uid = firebaseUser.uid,
+                                    name = name,
+                                    email = email,
+                                    xp = 0,
+                                    level = 1,
+                                    currentStreak = 0
+                                )
+                                FirebaseFirestore.getInstance()
+                                    .collection("users")
+                                    .document(firebaseUser.uid)
+                                    .set(userObj)
+                                    .await()
+                                
+                                _authState.value = AuthState.Success(firebaseUser)
+                            } catch (e: Exception) {
+                                _authState.value = AuthState.Error("Account created but profile setup failed: ${e.message}")
+                            }
+                        }
                     } else {
                         _authState.value = AuthState.Error("Signup successful but user is null")
                     }

@@ -6,8 +6,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.app.Notification
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
+
+import com.example.fewstep.R
 
 class NotificationReceiver : BroadcastReceiver() {
 
@@ -66,20 +70,50 @@ class NotificationReceiver : BroadcastReceiver() {
                 channelId,
                 "Habit Reminders",
                 NotificationManager.IMPORTANCE_HIGH
-            )
+            ).apply {
+                description = "Reminders for your habits and tasks"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 300, 200, 300)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
             notificationManager.createNotificationChannel(channel)
         }
 
+        val intent = Intent(context, com.example.fewstep.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = android.app.PendingIntent.getActivity(
+            context, 0, intent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("⏰ Time for: $title")
             .setContentText("Focus: $category • Scheduled for $time")
+            .setStyle(NotificationCompat.BigTextStyle()
+                .bigText("It's time for your $category habit: $title. Keep up the great momentum! 🚀"))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setColor(0xFF1A237E.toInt())
+            .setVibrate(longArrayOf(0, 300, 200, 300))
+            .setContentIntent(pendingIntent)
             .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
 
         notificationManager.notify(
             (System.currentTimeMillis() % Int.MAX_VALUE).toInt(), 
             builder.build()
         )
+
+        // Trigger Voice Reminder if not on silent
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        if (audioManager.ringerMode == android.media.AudioManager.RINGER_MODE_NORMAL) {
+            val voiceIntent = Intent(context, VoiceReminderService::class.java).apply {
+                putExtra("HABIT_TITLE", title)
+                putExtra("HABIT_TIME", time)
+            }
+            ContextCompat.startForegroundService(context, voiceIntent)
+        }
     }
 }

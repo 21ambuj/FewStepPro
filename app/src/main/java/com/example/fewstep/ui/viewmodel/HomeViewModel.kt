@@ -13,6 +13,12 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class HomeViewModel(private val repository: HabitRepository) : ViewModel() {
+    
+    init {
+        viewModelScope.launch {
+            repository.syncUserProfile()
+        }
+    }
 
     // Live stream of ALL habits (unfiltered by day) — for analytics
     val allHabitsRaw: StateFlow<List<Habit>> = repository.allHabits
@@ -43,12 +49,29 @@ class HomeViewModel(private val repository: HabitRepository) : ViewModel() {
             initialValue = null
         )
 
-    val xpHistory: StateFlow<List<com.example.fewstep.data.model.XpLog>> = repository.xpHistory
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private val _newMilestone = MutableStateFlow<Int?>(null)
+    val newMilestone: StateFlow<Int?> = _newMilestone.asStateFlow()
+
+    fun dismissMilestone() {
+        _newMilestone.value = null
+    }
+
+    init {
+        viewModelScope.launch {
+            repository.syncUserProfile()
+            
+            // Observe streak for milestones
+            userData.collect { user ->
+                val streak = user?.currentStreak ?: 0
+                val milestones = listOf(7, 15, 30, 50, 100)
+                if (streak in milestones) {
+                    // Check if we already celebrated this streak today
+                    // For now, we simple trigger it when the value matches
+                    _newMilestone.value = streak
+                }
+            }
+        }
+    }
 
     fun selectDay(day: Int) {
         _selectedDayOfWeek.value = day

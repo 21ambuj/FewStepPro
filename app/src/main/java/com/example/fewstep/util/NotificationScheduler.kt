@@ -60,7 +60,22 @@ object NotificationScheduler {
             calendar.add(Calendar.DAY_OF_YEAR, 1)
         }
 
+        val alarmClockInfo = AlarmManager.AlarmClockInfo(
+            calendar.timeInMillis,
+            PendingIntent.getActivity(
+                context,
+                0,
+                Intent(context, com.example.fewstep.MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        )
+
+        intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+
         try {
+            alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+        } catch (e: SecurityException) {
+            // Fallback for missing permission
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
@@ -74,13 +89,6 @@ object NotificationScheduler {
                     pendingIntent
                 )
             }
-        } catch (e: SecurityException) {
-            // Fallback for missing permission
-            alarmManager.set(
-                AlarmManager.RTC_WAKEUP,
-                calendar.timeInMillis,
-                pendingIntent
-            )
         }
     }
 

@@ -38,7 +38,11 @@ import com.example.fewstep.ui.screens.progress.ProgressScreen
 import com.example.fewstep.ui.screens.habit.EditHabitScreen
 import com.example.fewstep.ui.screens.focus.FocusTimerScreen
 import com.example.fewstep.ui.screens.analytics.AnalyticsScreen
+import com.example.fewstep.ui.screens.aicoach.AiCoachScreen
+import com.example.fewstep.ui.screens.leaderboard.LeaderboardScreen
+import com.example.fewstep.ui.screens.leaderboard.LeaderboardViewModel
 import com.example.fewstep.data.model.Habit
+import com.example.fewstep.ui.viewmodel.AiCoachViewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -106,8 +110,13 @@ class MainActivity : ComponentActivity() {
         val repository = HabitRepository()
         val homeViewModel = HomeViewModel(repository)
         val authViewModel = AuthViewModel()
+        val aiCoachViewModel = AiCoachViewModel()
+        val leaderboardViewModel = LeaderboardViewModel(repository)
         
         authViewModel.checkCurrentUser()
+        
+        // Start AI Notification Engine (Every 3 hours funny reminders)
+        com.example.fewstep.util.ai.AiNotificationScheduler.startInitial(this)
 
         setContent {
             FewStepTheme {
@@ -214,7 +223,18 @@ class MainActivity : ComponentActivity() {
                                         onProgressClick = { currentScreen = Screen.Progress },
                                         onFocusClick = { currentScreen = Screen.FocusTimer },
                                         onAnalyticsClick = { currentScreen = Screen.Analytics },
-                                        onEditClick = { habit -> currentScreen = Screen.EditHabit(habit) }
+                                        onEditClick = { habit -> currentScreen = Screen.EditHabit(habit) },
+                                        onAiCoachClick = { currentScreen = Screen.AiCoach }
+                                    )
+                                }
+                                is Screen.AiCoach -> {
+                                    val habits by homeViewModel.allHabitsRaw.collectAsState()
+                                    val user by homeViewModel.userData.collectAsState()
+                                    AiCoachScreen(
+                                        user = user,
+                                        habits = habits,
+                                        viewModel = aiCoachViewModel,
+                                        onBackClick = { currentScreen = Screen.Home }
                                     )
                                 }
                                 is Screen.AddHabit -> {
@@ -239,6 +259,7 @@ class MainActivity : ComponentActivity() {
                                             authViewModel.logout()
                                             currentScreen = Screen.Login
                                         },
+                                        onLeaderboardClick = { currentScreen = Screen.Leaderboard },
                                         onBackClick = { currentScreen = Screen.Home }
                                     )
                                 }
@@ -258,6 +279,12 @@ class MainActivity : ComponentActivity() {
                                     AnalyticsScreen(
                                         viewModel = homeViewModel,
                                         onBackClick = { currentScreen = Screen.Home }
+                                    )
+                                }
+                                is Screen.Leaderboard -> {
+                                    LeaderboardScreen(
+                                        viewModel = leaderboardViewModel,
+                                        onBackClick = { currentScreen = Screen.Profile }
                                     )
                                 }
                             }
@@ -280,7 +307,6 @@ sealed class Screen {
     object Progress : Screen()
     object FocusTimer : Screen()
     object Analytics : Screen()
+    object AiCoach : Screen()
+    object Leaderboard : Screen()
 }
-
-
-

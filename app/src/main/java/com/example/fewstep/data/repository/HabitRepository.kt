@@ -128,89 +128,13 @@ class HabitRepository(
         }
     }
 
-    suspend fun awardXp(xpAmount: Long, reason: String) {
-        val uid = userId ?: return
-        val userRef = firestore.collection("users").document(uid)
-        val xpLogsRef = firestore.collection("users").document(uid).collection("xp_logs")
-        
-        firestore.runTransaction { transaction ->
-            val snapshot = transaction.get(userRef)
-            val currentXp = snapshot.getLong("xp") ?: 0L
-            val newXp = currentXp + xpAmount
-            val newLevel = User.calculateLevel(newXp)
-            
-            // Use set with Merge to ensure document is created if it doesn't exist
-            val userUpdates = hashMapOf(
-                "xp" to newXp,
-                "level" to newLevel
-            )
-            transaction.set(userRef, userUpdates, SetOptions.merge())
-            
-            val logRef = xpLogsRef.document()
-            val log = com.example.fewstep.data.model.XpLog(
-                id = logRef.id,
-                userId = uid,
-                amount = xpAmount,
-                reason = reason,
-                timestamp = System.currentTimeMillis()
-            )
-            transaction.set(logRef, log)
-        }.await()
-    }
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val xpHistory: Flow<List<com.example.fewstep.data.model.XpLog>> = authStateFlow.flatMapLatest { uid ->
-        if (uid == null) return@flatMapLatest flowOf(emptyList<com.example.fewstep.data.model.XpLog>())
-        callbackFlow {
-            val listener = firestore.collection("users").document(uid).collection("xp_logs")
-                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .limit(50)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) {
-                        trySend(emptyList())
-                        return@addSnapshotListener
-                    }
-                    val logs = snapshot?.documents?.mapNotNull { it.toObject(com.example.fewstep.data.model.XpLog::class.java) } ?: emptyList()
-                    trySend(logs)
-                }
-            awaitClose { listener.remove() }
-        }
-    }
 
-    suspend fun updateStreakLogic(date: String) {
-        val uid = userId ?: return
-        val userRef = firestore.collection("users").document(uid)
-        
-        firestore.runTransaction { transaction ->
-            val snapshot = transaction.get(userRef)
-            val currentStreak = snapshot.getLong("currentStreak")?.toInt() ?: 0
-            val lastUpdate = snapshot.getString("lastStreakUpdate") ?: ""
-            
-            if (lastUpdate == date) return@runTransaction // Already updated today
-            
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-            val cal = java.util.Calendar.getInstance()
-            cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
-            val yesterday = sdf.format(cal.time)
-            
-            val newStreak = when (lastUpdate) {
-                yesterday -> currentStreak + 1
-                else -> 1 // Reset if missed a day or first time
-            }
-            
-            val updates = hashMapOf(
-                "currentStreak" to newStreak,
-                "lastStreakUpdate" to date
-            )
-            transaction.set(userRef, updates, SetOptions.merge())
-        }.await()
-    }
 
     suspend fun markHabitAsCompleted(habit: Habit, date: String) {
         val uid = userId ?: return
         val userRef = firestore.collection("users").document(uid)
         val logsRef = firestore.collection("users").document(uid).collection("logs")
-        val xpLogsRef = firestore.collection("users").document(uid).collection("xp_logs")
         
         firestore.runTransaction { transaction ->
             // 1. PERFORM ALL READS FIRST
@@ -235,21 +159,23 @@ class HabitRepository(
             val newXp = currentXp + 50L
             val newLevel = User.calculateLevel(newXp)
 
-            val userUpdates = hashMapOf(
+            val userUpdates = hashMapOf<String, Any>(
                 "xp" to newXp,
                 "level" to newLevel
             )
-            transaction.set(userRef, userUpdates, SetOptions.merge())
+            
+            // Backfill details if missing
+            if (userSnapshot.getString("name").isNullOrEmpty()) {
+                auth.currentUser?.displayName?.let { userUpdates["name"] = it }
+            }
+            if (userSnapshot.getString("email").isNullOrEmpty()) {
+                auth.currentUser?.email?.let { userUpdates["email"] = it }
+            }
+            if (userSnapshot.getString("uid").isNullOrEmpty()) {
+                userUpdates["uid"] = uid
+            }
 
-            val xpLogRef = xpLogsRef.document()
-            val xpLog = com.example.fewstep.data.model.XpLog(
-                id = xpLogRef.id,
-                userId = uid,
-                amount = 50L,
-                reason = "Completed: ${habit.title}",
-                timestamp = System.currentTimeMillis()
-            )
-            transaction.set(xpLogRef, xpLog)
+            transaction.set(userRef, userUpdates, SetOptions.merge())
 
             val currentStreak = userSnapshot.getLong("currentStreak")?.toInt() ?: 0
             val lastUpdate = userSnapshot.getString("lastStreakUpdate") ?: ""
@@ -275,5 +201,64 @@ class HabitRepository(
                 }
             }
         }.await()
+    }
+    suspend fun syncUserProfile() {
+        val firebaseUser = auth.currentUser ?: return
+        val userRef = firestore.collection("users").document(firebaseUser.uid)
+        val snapshot = userRef.get().await()
+
+        if (!snapshot.exists()) {
+            val newUser = User(
+                uid = firebaseUser.uid,
+                name = firebaseUser.displayName ?: "Champion",
+                email = firebaseUser.email ?: "",
+                xp = 0,
+                level = 1,
+                currentStreak = 0
+            )
+            userRef.set(newUser).await()
+        } else {
+            // Document exists, but check if name/email is missing
+            val updates = mutableMapOf<String, Any>()
+            if (snapshot.getString("name").isNullOrEmpty() && !firebaseUser.displayName.isNullOrEmpty()) {
+                updates["name"] = firebaseUser.displayName!!
+            }
+            if (snapshot.getString("email").isNullOrEmpty() && !firebaseUser.email.isNullOrEmpty()) {
+                updates["email"] = firebaseUser.email!!
+            }
+            if (snapshot.getString("uid").isNullOrEmpty()) {
+                updates["uid"] = firebaseUser.uid
+            }
+            
+            if (updates.isNotEmpty()) {
+                userRef.update(updates).await()
+            }
+        }
+    }
+
+    fun getLeaderboard(): Flow<List<User>> = callbackFlow {
+        val listener = firestore.collection("users")
+            .orderBy("xp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(100)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    // Log error to console (visible in logcat)
+                    android.util.Log.e("Leaderboard", "Firestore error: ${error.message}")
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val users = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            doc.toObject(User::class.java)
+                        } catch (e: Exception) {
+                            android.util.Log.e("Leaderboard", "Mapping error: ${e.message}")
+                            null
+                        }
+                    }
+                    trySend(users)
+                }
+            }
+        awaitClose { listener.remove() }
     }
 }
