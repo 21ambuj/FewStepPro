@@ -1,5 +1,7 @@
 package com.example.fewstep.ui.screens.leaderboard
 
+import com.example.fewstep.ui.components.AdMobBanner
+
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -48,22 +50,40 @@ fun LeaderboardScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Global Champions", fontWeight = FontWeight.Black) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        "Global Champions",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            }
         }
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF5F7FA))
+                .background(MaterialTheme.colorScheme.background)
         ) {
             if (isLoading) {
                 Column(
@@ -71,9 +91,9 @@ fun LeaderboardScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    CircularProgressIndicator(color = Color(0xFF1A237E))
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Fetching Champions...", color = Color.Gray)
+                    Text("Fetching Champions...", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else if (topUsers.isEmpty()) {
                 Column(
@@ -81,15 +101,15 @@ fun LeaderboardScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.EmojiEvents, null, tint = Color.LightGray, modifier = Modifier.size(64.dp))
+                    Icon(Icons.Default.EmojiEvents, null, tint = MaterialTheme.colorScheme.outline, modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("No champions found yet.", fontWeight = FontWeight.Bold, color = Color.Gray)
-                    Text("Be the first to reach the top!", color = Color.Gray, fontSize = 12.sp)
+                    Text("No champions found yet.", fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Be the first to reach the top!", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(20.dp),
+                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Top 3 Podium
@@ -103,6 +123,10 @@ fun LeaderboardScreen(
                         itemsIndexed(topUsers.drop(3)) { index, user ->
                             LeaderboardItem(index + 4, user)
                         }
+                    }
+                    
+                    item {
+                        AdMobBanner()
                     }
                 }
             }
@@ -173,16 +197,16 @@ fun PodiumItem(user: User, rank: Int, color: Color, height: Dp) {
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             user.name.take(10), 
-            fontWeight = FontWeight.Bold, 
+            fontWeight = FontWeight.Black, 
             fontSize = 14.sp, 
             textAlign = TextAlign.Center,
-            color = Color(0xFF1A237E)
+            color = MaterialTheme.colorScheme.onBackground
         )
         Text(
             "${user.xp} XP", 
             fontSize = 12.sp, 
-            color = Color.Gray,
-            fontWeight = FontWeight.Bold
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Black
         )
         Spacer(modifier = Modifier.height(8.dp))
         Box(
@@ -190,8 +214,14 @@ fun PodiumItem(user: User, rank: Int, color: Color, height: Dp) {
                 .width(60.dp)
                 .height(height / 2)
                 .background(
-                    Brush.verticalGradient(listOf(color, color.copy(alpha = 0.5f))),
-                    RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            color, 
+                            color.copy(alpha = 0.3f),
+                            Color.Transparent
+                        )
+                    ),
+                    RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                 )
         )
     }
@@ -202,7 +232,7 @@ fun LeaderboardItem(rank: Int, user: User) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
@@ -213,20 +243,20 @@ fun LeaderboardItem(rank: Int, user: User) {
                 rank.toString(), 
                 modifier = Modifier.width(32.dp), 
                 fontWeight = FontWeight.Black, 
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp
             )
             
             Surface(
                 modifier = Modifier.size(40.dp),
                 shape = CircleShape,
-                color = Color(0xFFF5F7FA)
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
                         user.name.take(1).uppercase(),
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A237E)
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -234,10 +264,10 @@ fun LeaderboardItem(rank: Int, user: User) {
             Spacer(modifier = Modifier.width(16.dp))
             
             Column(modifier = Modifier.weight(1f)) {
-                Text(user.name, fontWeight = FontWeight.Bold, color = Color(0xFF1A237E))
+                Text(user.name, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Whatshot, null, tint = Color(0xFFFF5722), modifier = Modifier.size(12.dp))
-                    Text("${user.currentStreak} day streak", fontSize = 11.sp, color = Color.Gray)
+                    Text("${user.currentStreak} day streak", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             

@@ -16,15 +16,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.fewstep.R
 import com.example.fewstep.data.model.User
 import com.example.fewstep.ui.viewmodel.HomeViewModel
 import kotlinx.coroutines.launch
@@ -33,6 +35,9 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import java.util.Locale
 import java.text.SimpleDateFormat
 import java.util.Date
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import com.example.fewstep.ui.components.AdMobBanner
 
 enum class DayState { PAST, TODAY, FUTURE }
 
@@ -71,8 +76,11 @@ fun HomeScreen(
     val prefs = remember { context.getSharedPreferences("FewStepPrefs", Context.MODE_PRIVATE) }
     val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
 
-    // Reorder: Pending first, Completed last
-    val sortedHabits = habits.sortedBy { it.id in completedIdsForDay }
+    // Reorder: Pending first, Completed last. Both sub-sections sorted by time.
+    val sortedHabits = habits.sortedWith(
+        compareBy<com.example.fewstep.data.model.Habit> { it.id in completedIdsForDay }
+            .thenBy { it.reminderTime }
+    )
 
     // Clear processing IDs once they are confirmed by the server
     LaunchedEffect(completedIdsForDay) {
@@ -112,38 +120,68 @@ fun HomeScreen(
     val selectedIndex: Int = dayMapping.indexOf(selectedDay)
     
 
-    Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                TopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Hello, ${user?.name ?: userName}!", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A237E))
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                user?.let {
-                                    StreakBadge(it.currentStreak)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    LevelBadge(it.level)
-                                }
-                            }
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = onProgressClick) {
-                            Icon(Icons.Default.DateRange, contentDescription = "Calendar", tint = Color(0xFF1A237E))
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+
+                        Text(
+                            text = "Hello, ${user?.name ?: userName}!",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // All cards same weight for uniform size
+                        HeaderBadgeCard(
+                            modifier = Modifier.weight(1f),
+                            label = "Streak",
+                            value = "${user?.currentStreak ?: 0}d",
+                            icon = Icons.Default.Whatshot,
+                            iconColor = Color(0xFFFF5722),
+                            bgColor = Color(0xFFFFE0B2)
+                        )
+                        HeaderBadgeCard(
+                            modifier = Modifier.weight(1f),
+                            label = "Level",
+                            value = "${user?.level ?: 1}",
+                            icon = Icons.Default.Star,
+                            iconColor = Color(0xFFFFA000),
+                            bgColor = Color(0xFFFFF9C4)
+                        )
+                        HeaderBadgeCard(
+                            modifier = Modifier.weight(1f),
+                            label = "Cals",
+                            value = "Log",
+                            icon = Icons.Default.DateRange,
+                            iconColor = Color(0xFF1E88E5),
+                            bgColor = Color(0xFFE3F2FD),
+                            onClick = onProgressClick
+                        )
+                    }
+                }
             },
             floatingActionButton = {
                 Column(horizontalAlignment = Alignment.End) {
                     FloatingActionButton(
                         onClick = onAiCoachClick,
-                        containerColor = Color(0xFFE8EAF6),
-                        contentColor = Color(0xFF1A237E),
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         shape = CircleShape,
                         elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
                         modifier = Modifier.padding(bottom = 12.dp).size(48.dp)
@@ -153,11 +191,11 @@ fun HomeScreen(
                     
                     FloatingActionButton(
                         onClick = onAddHabitClick,
-                        containerColor = Color(0xFF1A237E),
-                        contentColor = Color.White,
-                        shape = CircleShape, // Changed to Circle for classic FAB look
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        shape = CircleShape,
                         elevation = FloatingActionButtonDefaults.elevation(8.dp),
-                        modifier = Modifier.padding(bottom = 16.dp) // Extra padding to avoid bottom bar overlap
+                        modifier = Modifier.padding(bottom = 16.dp)
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "Add Habit", modifier = Modifier.size(28.dp))
                     }
@@ -169,7 +207,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .background(Color(0xFFF5F7FA))
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 contentPadding = PaddingValues(bottom = 80.dp)
@@ -190,8 +228,8 @@ fun HomeScreen(
                     Text(
                         text = statusText,
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1A237E),
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
@@ -223,9 +261,8 @@ fun HomeScreen(
                             else -> DayState.TODAY
                         }
 
-                        // Calculate the start-of-day timestamp for the selected day this week
+                        // Calculate the start and end of the selected day
                         val selectedDayStartMs = java.util.Calendar.getInstance().apply {
-                            // Find the current week's date for the selectedIndex
                             val currentDayOfWeek = get(java.util.Calendar.DAY_OF_WEEK)
                             val diff = dayMapping[selectedIndex] - currentDayOfWeek
                             add(java.util.Calendar.DAY_OF_YEAR, diff)
@@ -234,14 +271,22 @@ fun HomeScreen(
                             set(java.util.Calendar.SECOND, 0)
                             set(java.util.Calendar.MILLISECOND, 0)
                         }.timeInMillis
+                        val selectedDayEndMs = selectedDayStartMs + 24 * 60 * 60 * 1000L - 1
 
-                        // Hide habit if it didn't exist on the selected day
-                        val habitExistedOnDay = habit.createdAt <= selectedDayStartMs + 24 * 60 * 60 * 1000L - 1
-                        if (!habitExistedOnDay && dayState == DayState.PAST) return@itemsIndexed
+                        // Visibility Logic based on duration
+                        val isStarted = habit.startDate == null || habit.startDate <= selectedDayEndMs
+                        val isFinished = habit.endDate != null && selectedDayStartMs > habit.endDate
+
+                        // Hide if not started yet or if past its end date (unless it's today and we want to show it as finished)
+                        if (!isStarted) return@itemsIndexed
+                        
+                        // Always show for today if it's finished, but hide for future days if finished
+                        if (isFinished && dayState == DayState.FUTURE) return@itemsIndexed
 
                         HabitItem(
                             habit = habit,
                             isCompleted = isDone || isProcessing,
+                            statusFinished = isFinished,
                             totalCompletions = habitStats[habit.id] ?: 0,
                             dayState = dayState,
                             onCompleteClick = { 
@@ -253,7 +298,12 @@ fun HomeScreen(
                                     }
                                 }
                             },
-                            onDeleteClick = { viewModel.deleteHabit(context, habit) },
+                            onDeleteClick = { 
+                                viewModel.deleteHabit(context, habit) 
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Mission Terminated. 🗑️")
+                                }
+                            },
                             onEditClick = { onEditClick(habit) }
                         )
                     }
@@ -266,6 +316,10 @@ fun HomeScreen(
                             }
                         }
                     }
+                }
+
+                item {
+                    AdMobBanner()
                 }
             }
         }
@@ -286,7 +340,8 @@ fun HomeScreen(
             )
         }
     }
-}
+
+
 
 @Composable
 fun StreakAchievementOverlay(streak: Int, isMilestone: Boolean = false, onDismiss: () -> Unit) {
@@ -328,7 +383,7 @@ fun StreakAchievementOverlay(streak: Int, isMilestone: Boolean = false, onDismis
                     color = Color(0xFFFFD600),
                     letterSpacing = 2.sp
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(0.dp))
             }
 
             Box(
@@ -429,7 +484,7 @@ fun StreakAchievementOverlay(streak: Int, isMilestone: Boolean = false, onDismis
 @Composable
 fun LevelBadge(level: Int) {
     Surface(
-        color = Color(0xFF1A237E),
+        color = MaterialTheme.colorScheme.primary,
         shape = RoundedCornerShape(8.dp),
         tonalElevation = 4.dp
     ) {
@@ -441,7 +496,7 @@ fun LevelBadge(level: Int) {
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 "LVL $level",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -484,17 +539,45 @@ fun XpProgressBar(xp: Long, level: Int) {
     val progress = (xp - currentLevelStart).toFloat() / (nextLevelTarget - currentLevelStart).toFloat()
     
     Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("Power Progress", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A237E))
-            Text("${xp - currentLevelStart} / ${nextLevelTarget - currentLevelStart} XP", fontSize = 12.sp, color = Color.Gray)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+            Text(
+                "Power Progress", 
+                fontSize = 13.sp, 
+                fontWeight = FontWeight.Black, 
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 0.5.sp
+            )
+            Text(
+                "${xp - currentLevelStart} / ${nextLevelTarget - currentLevelStart} XP", 
+                fontSize = 11.sp, 
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
         }
-        Spacer(modifier = Modifier.height(6.dp))
-        LinearProgressIndicator(
-            progress = { progress.coerceIn(0f, 1f) },
-            modifier = Modifier.fillMaxWidth().height(10.dp).graphicsLayer(clip = true, shape = RoundedCornerShape(5.dp)),
-            color = Color(0xFF1A237E),
-            trackColor = Color(0xFFE8EAF6)
-        )
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(12.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progress.coerceIn(0f, 1f))
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.tertiary
+                            )
+                        )
+                    )
+            )
+        }
     }
 }
 
@@ -503,7 +586,7 @@ fun WeeklyRecapBar(recap: List<com.example.fewstep.ui.viewmodel.DaySummary>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -517,8 +600,8 @@ fun WeeklyRecapBar(recap: List<com.example.fewstep.ui.viewmodel.DaySummary>) {
                     Text(
                         text = summary.dayName,
                         fontSize = 10.sp,
-                        color = if (summary.isToday) Color(0xFF1A237E) else Color.Gray,
-                        fontWeight = if (summary.isToday) FontWeight.Bold else FontWeight.Normal
+                        color = if (summary.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (summary.isToday) FontWeight.Black else FontWeight.Normal
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Box(
@@ -526,10 +609,10 @@ fun WeeklyRecapBar(recap: List<com.example.fewstep.ui.viewmodel.DaySummary>) {
                             .size(32.dp)
                             .background(
                                 color = when {
-                                    summary.completedCount > 0 && summary.completedCount >= summary.totalCount -> Color(0xFF43A047)
-                                    summary.completedCount > 0 -> Color(0xFF81C784)
-                                    summary.isToday -> Color(0xFFE8EAF6)
-                                    else -> Color(0xFFF5F5F5)
+                                    summary.completedCount > 0 && summary.completedCount >= summary.totalCount -> Color(0xFF10B981)
+                                    summary.completedCount > 0 -> Color(0xFF10B981).copy(alpha = 0.6f)
+                                    summary.isToday -> MaterialTheme.colorScheme.secondaryContainer
+                                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                                 },
                                 shape = CircleShape
                             ),
@@ -543,7 +626,7 @@ fun WeeklyRecapBar(recap: List<com.example.fewstep.ui.viewmodel.DaySummary>) {
                                 fontWeight = FontWeight.Bold
                             )
                         } else if (summary.isToday) {
-                            Box(modifier = Modifier.size(6.dp).background(Color(0xFF1A237E), CircleShape))
+                            Box(modifier = Modifier.size(6.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
                         }
                     }
                 }
@@ -557,6 +640,7 @@ fun WeeklyRecapBar(recap: List<com.example.fewstep.ui.viewmodel.DaySummary>) {
 fun HabitItem(
     habit: com.example.fewstep.data.model.Habit,
     isCompleted: Boolean,
+    statusFinished: Boolean = false,
     totalCompletions: Int,
     dayState: DayState,
     onCompleteClick: () -> Unit,
@@ -569,17 +653,21 @@ fun HabitItem(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                alpha = if (isCompleted) 0.8f else 1f
+                alpha = if (isCompleted) 0.9f else 1f
             },
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isCompleted) Color(0xFFE8F5E9) else Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isCompleted) 1.dp else 6.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -587,35 +675,52 @@ fun HabitItem(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = habit.title,
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (isCompleted) Color(0xFF2E7D32) else Color(0xFF1A237E)
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = if (isCompleted) 
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) 
+                        else 
+                            MaterialTheme.colorScheme.onSurface,
+                        textDecoration = if (isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
                     )
                     if (isCompleted) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        Icon(Icons.Default.CheckCircle, "Done", tint = Color(0xFF43A047), modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.CheckCircle, "Done", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
-                        color = if (isCompleted) Color(0xFFC8E6C9) else Color(0xFFFBE9E7),
-                        shape = RoundedCornerShape(6.dp)
+                        color = if (isCompleted) 
+                            MaterialTheme.colorScheme.surfaceVariant 
+                        else 
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
                             text = habit.category,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isCompleted) Color(0xFF2E7D32) else Color(0xFFD84315)
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "${habit.reminderTime}",
                         fontSize = 13.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold
+                    )
+                }
+                if (habit.description.isNotEmpty()) {
+                    Text(
+                        text = habit.description,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(top = 2.dp),
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
@@ -629,6 +734,7 @@ fun HabitItem(
             
             val buttonLabel = when {
                 isCompleted -> "COMPLETED"
+                statusFinished -> "FINISHED"
                 dayState == DayState.PAST -> "MISSED"
                 dayState == DayState.FUTURE -> "UPCOMING"
                 else -> "DONE"
@@ -636,32 +742,36 @@ fun HabitItem(
 
             Button(
                 onClick = onCompleteClick,
-                enabled = !isCompleted && dayState == DayState.TODAY,
+                enabled = !isCompleted && !statusFinished && dayState == DayState.TODAY,
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = when {
-                        isCompleted -> Color(0xFFE8F5E9)
-                        dayState == DayState.PAST -> Color(0xFFFFEBEE)
-                        dayState == DayState.FUTURE -> Color(0xFFF5F5F5)
-                        else -> Color(0xFF43A047)
+                        isCompleted -> Color(0xFFD1FAE5)
+                        statusFinished -> MaterialTheme.colorScheme.surfaceVariant
+                        dayState == DayState.PAST -> Color(0xFFFEE2E2)
+                        dayState == DayState.FUTURE -> MaterialTheme.colorScheme.surfaceVariant
+                        else -> Color(0xFF10B981)
                     },
                     contentColor = when {
-                        isCompleted -> Color(0xFF43A047)
-                        dayState == DayState.PAST -> Color(0xFFD32F2F)
-                        dayState == DayState.FUTURE -> Color.Gray
+                        isCompleted -> Color(0xFF059669)
+                        statusFinished -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        dayState == DayState.PAST -> Color(0xFFEF4444)
+                        dayState == DayState.FUTURE -> MaterialTheme.colorScheme.onSurfaceVariant
                         else -> Color.White
                     },
                     disabledContainerColor = when {
-                        isCompleted -> Color(0xFFE8F5E9)
-                        dayState == DayState.PAST -> Color(0xFFFFEBEE)
-                        dayState == DayState.FUTURE -> Color(0xFFF5F5F5)
-                        else -> Color(0xFFE8F5E9)
+                        isCompleted -> Color(0xFFD1FAE5)
+                        statusFinished -> MaterialTheme.colorScheme.surfaceVariant
+                        dayState == DayState.PAST -> Color(0xFFFEE2E2)
+                        dayState == DayState.FUTURE -> MaterialTheme.colorScheme.surfaceVariant
+                        else -> Color(0xFFD1FAE5)
                     },
                     disabledContentColor = when {
-                        isCompleted -> Color(0xFF43A047)
-                        dayState == DayState.PAST -> Color(0xFFD32F2F)
-                        dayState == DayState.FUTURE -> Color.Gray
-                        else -> Color(0xFF43A047)
+                        isCompleted -> Color(0xFF059669)
+                        statusFinished -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        dayState == DayState.PAST -> Color(0xFFEF4444)
+                        dayState == DayState.FUTURE -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> Color(0xFF059669)
                     }
                 ),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -687,7 +797,7 @@ fun HabitItem(
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false },
-                    modifier = Modifier.background(Color.White)
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                 ) {
                     DropdownMenuItem(
                         text = { Text("Edit") },
@@ -713,13 +823,13 @@ fun WeeklyTabRow(days: List<String>, selectedIndex: Int, onDaySelected: (Int) ->
     ScrollableTabRow(
         selectedTabIndex = selectedIndex,
         containerColor = Color.Transparent,
-        contentColor = Color(0xFF1A237E),
+        contentColor = MaterialTheme.colorScheme.primary,
         edgePadding = 0.dp,
         divider = {},
         indicator = { tabPositions ->
             TabRowDefaults.SecondaryIndicator(
                 Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
-                color = Color(0xFF1A237E),
+                color = MaterialTheme.colorScheme.primary,
                 height = 3.dp
             )
         }
@@ -736,6 +846,63 @@ fun WeeklyTabRow(days: List<String>, selectedIndex: Int, onDaySelected: (Int) ->
                     )
                 }
             )
+        }
+    }
+}
+
+@Composable
+fun HeaderBadgeCard(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconColor: Color,
+    bgColor: Color,
+    onClick: (() -> Unit)? = null
+) {
+    Card(
+        modifier = modifier
+            .height(56.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(enabled = onClick != null) { onClick?.invoke() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(bgColor.copy(alpha = 0.2f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(
+                    text = value,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = label,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

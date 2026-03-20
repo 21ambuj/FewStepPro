@@ -47,6 +47,8 @@ class FocusTimerService : Service(), TextToSpeech.OnInitListener {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var timerJob: Job? = null
     private var tts: TextToSpeech? = null
+    private var pendingSpeech: String? = null
+    private var isTtsReady = false
 
     // Public state flows that the UI can observe
     private val _secondsLeft = MutableStateFlow(25 * 60)
@@ -161,12 +163,21 @@ class FocusTimerService : Service(), TextToSpeech.OnInitListener {
     }
 
     private fun speak(text: String) {
+        if (tts == null || !isTtsReady) {
+            pendingSpeech = text
+            return
+        }
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "focus_tts_${System.currentTimeMillis()}")
     }
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts?.setLanguage(Locale.US)
+            isTtsReady = true
+            pendingSpeech?.let {
+                speak(it)
+                pendingSpeech = null
+            }
         } else {
             Log.e("FocusTimer", "TTS init failed")
         }

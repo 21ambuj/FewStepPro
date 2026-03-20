@@ -5,10 +5,13 @@ import kotlin.math.*
 data class Habit(
     val id: String = "",
     val title: String = "",
-    val category: String = "",
+    val description: String = "",
+    val category: String = "Health",
     val frequency: String = "Daily",
-    val scheduledDays: List<Int> = listOf(1, 2, 3, 4, 5, 6, 7), // 1=Sun, 2=Mon, ..., 7=Sat
+    val scheduledDays: List<Int> = listOf(1, 2, 3, 4, 5, 6, 7),
     val reminderTime: String = "",
+    val startDate: Long? = null,
+    val endDate: Long? = null,
     val createdAt: Long = System.currentTimeMillis()
 )
 
@@ -36,8 +39,21 @@ data class User(
     val currentStreak: Int = 0,
     val lastStreakUpdate: String = "", // yyyy-MM-dd
     val xp: Long = 0,
-    val level: Int = 1
+    val level: Int = 1,
+    val isAdmin: Boolean = false,
+    val isBlocked: Boolean = false,
+    val lastSeenBroadcastId: String = ""
 ) {
+    val rankTitle: String get() = when {
+        level >= 101 -> "UNSTOPPABLE FORCE"
+        level >= 51 -> "LEGENDARY CHAMPION"
+        level >= 21 -> "MASTER COACH"
+        level >= 11 -> "ELITE WARRIOR"
+        level >= 6 -> "WARRIOR"
+        level >= 3 -> "APPRENTICE"
+        else -> "NOVICE"
+    }
+
     companion object {
         fun calculateLevel(xp: Long): Int {
             return (kotlin.math.floor(kotlin.math.sqrt(xp.toDouble() / 100)) + 1).toInt()
@@ -49,3 +65,20 @@ data class User(
         }
     }
 }
+
+data class UserQuery(
+    val id: String = "",
+    val userId: String = "",
+    val userName: String = "",
+    val userEmail: String = "",
+    val query: String = "",
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+data class AdminBroadcast(
+    val id: String = "",
+    val message: String = "",
+    val timestamp: Long = 0,
+    val type: String = "ADMIN_GLOBAL",
+    val active: Boolean = true
+)

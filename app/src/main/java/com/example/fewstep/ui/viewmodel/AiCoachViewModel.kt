@@ -82,6 +82,7 @@ class AiCoachViewModel : ViewModel() {
             2. NO special characters like *, #, or bold markdown.
             3. Use 1-2 emojis per point based on context.
             4. Keep responses very short and professional.
+            5. DO NOT ask any follow-up questions or unnecessary questions. Direct answers only.
             
             User says: $userPrompt
         """.trimIndent()

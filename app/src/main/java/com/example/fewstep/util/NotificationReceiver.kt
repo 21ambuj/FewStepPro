@@ -107,11 +107,13 @@ class NotificationReceiver : BroadcastReceiver() {
         )
 
         // Trigger Voice Reminder if not on silent
+        // Trigger Voice Reminder if not on silent
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
         if (audioManager.ringerMode == android.media.AudioManager.RINGER_MODE_NORMAL) {
             val voiceIntent = Intent(context, VoiceReminderService::class.java).apply {
-                putExtra("HABIT_TITLE", title)
-                putExtra("HABIT_TIME", time)
+                putExtra(VoiceReminderService.EXTRA_HABIT_TITLE, title)
+                putExtra(VoiceReminderService.EXTRA_HABIT_TIME, time)
+                putExtra(VoiceReminderService.EXTRA_LOCALE, "en")
             }
             ContextCompat.startForegroundService(context, voiceIntent)
         }

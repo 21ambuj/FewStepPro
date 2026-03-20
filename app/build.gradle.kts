@@ -76,6 +76,9 @@ dependencies {
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
     
+    // AdMob
+    implementation("com.google.android.gms:play-services-ads:23.6.0")
+    
     // OkHttp for AI API
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

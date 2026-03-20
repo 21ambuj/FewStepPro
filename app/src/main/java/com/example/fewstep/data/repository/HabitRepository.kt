@@ -81,7 +81,27 @@ class HabitRepository(
 
     suspend fun deleteHabit(habit: Habit) {
         val uid = userId ?: return
-        firestore.collection("users").document(uid).collection("habits").document(habit.id).delete().await()
+        val batch = firestore.batch()
+        
+        // Delete the habit document
+        val habitRef = firestore.collection("users").document(uid).collection("habits").document(habit.id)
+        batch.delete(habitRef)
+        
+        // Find and delete all logs for this habit
+        try {
+            val logsSnapshot = firestore.collection("users").document(uid).collection("logs")
+                .whereEqualTo("habitId", habit.id)
+                .get()
+                .await()
+            
+            for (doc in logsSnapshot.documents) {
+                batch.delete(doc.reference)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("HabitRepository", "Error fetching logs for deletion: ${e.message}")
+        }
+        
+        batch.commit().await()
     }
 
     suspend fun updateHabit(habit: Habit) {
@@ -202,6 +222,13 @@ class HabitRepository(
             }
         }.await()
     }
+    suspend fun updateUserName(newName: String) {
+        val uid = userId ?: return
+        firestore.collection("users").document(uid)
+            .update("name", newName)
+            .await()
+    }
+
     suspend fun syncUserProfile() {
         val firebaseUser = auth.currentUser ?: return
         val userRef = firestore.collection("users").document(firebaseUser.uid)

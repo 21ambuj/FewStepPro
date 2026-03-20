@@ -53,29 +53,44 @@ fun AiCoachScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color(0xFF1A237E))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("AI Coach", fontWeight = FontWeight.Bold, color = Color(0xFF1A237E))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
                     }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF1A237E))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "AI Coach",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            }
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .imePadding() // Ensures layout resizes to stay above keyboard
-                .background(Color(0xFFF5F7FA))
+                .imePadding()
+                .background(MaterialTheme.colorScheme.background)
         ) {
             LazyColumn(
                 state = listState,
@@ -99,7 +114,7 @@ fun AiCoachScreen(
             // Input Area
             Surface(
                 tonalElevation = 8.dp,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -111,18 +126,18 @@ fun AiCoachScreen(
                     TextField(
                         value = textInput,
                         onValueChange = { textInput = it },
-                        placeholder = { Text("Ask your coach...") },
+                        placeholder = { Text("Ask your coach...", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(24.dp)),
+                            .clip(RoundedCornerShape(28.dp)),
                         colors = TextFieldDefaults.colors(
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent,
-                            focusedContainerColor = Color(0xFFF3F4F6),
-                            unfocusedContainerColor = Color(0xFFF3F4F6),
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black,
-                            cursorColor = Color(0xFF1A237E)
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            cursorColor = MaterialTheme.colorScheme.primary
                         ),
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                         maxLines = 4
@@ -137,8 +152,8 @@ fun AiCoachScreen(
                                 textInput = ""
                             }
                         },
-                        containerColor = if (isTyping) Color.Gray else Color(0xFF1A237E),
-                        contentColor = Color.White,
+                        containerColor = if (isTyping) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
+                        contentColor = if (isTyping) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary,
                         shape = CircleShape,
                         modifier = Modifier.size(50.dp)
                     ) {
@@ -153,12 +168,20 @@ fun AiCoachScreen(
 @Composable
 fun ChatBubble(message: ChatMessage) {
     val alignment = if (message.isUser) Alignment.CenterEnd else Alignment.CenterStart
-    val bubbleColor = if (message.isUser) Color(0xFF1A237E) else Color.White
-    val contentColor = if (message.isUser) Color.White else Color(0xFF333333)
-    val shape = if (message.isUser) {
-        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp)
+    val bubbleColor = if (message.isUser) {
+        MaterialTheme.colorScheme.primary
     } else {
-        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp)
+        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.9f)
+    }
+    val contentColor = if (message.isUser) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    }
+    val shape = if (message.isUser) {
+        RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 4.dp)
+    } else {
+        RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 20.dp)
     }
 
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = alignment) {
@@ -195,7 +218,7 @@ fun TypingIndicator() {
         modifier = Modifier
             .padding(start = 8.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically

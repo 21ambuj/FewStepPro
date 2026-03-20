@@ -141,15 +141,28 @@ class HomeViewModel(private val repository: HabitRepository) : ViewModel() {
             repository.markHabitAsCompleted(habit, dateToMark)
         }
     }
-    fun addHabit(context: Context, title: String, category: String, frequency: String, scheduledDays: List<Int>, reminderTime: String) {
+    fun addHabit(
+        context: Context, 
+        title: String, 
+        description: String,
+        category: String, 
+        frequency: String, 
+        scheduledDays: List<Int>, 
+        reminderTime: String,
+        startDate: Long? = null,
+        endDate: Long? = null
+    ) {
         viewModelScope.launch {
             val habitId = repository.insertHabit(
                 Habit(
                     title = title,
+                    description = description,
                     category = category,
                     frequency = frequency,
                     scheduledDays = scheduledDays,
-                    reminderTime = reminderTime
+                    reminderTime = reminderTime,
+                    startDate = startDate,
+                    endDate = endDate
                 )
             )
             NotificationScheduler.scheduleHabitReminder(context, habitId.hashCode(), title, category, reminderTime, scheduledDays)
@@ -168,6 +181,12 @@ class HomeViewModel(private val repository: HabitRepository) : ViewModel() {
             repository.updateHabit(habit)
             NotificationScheduler.cancelHabitReminder(context, habit.id.hashCode())
             NotificationScheduler.scheduleHabitReminder(context, habit.id.hashCode(), habit.title, habit.category, habit.reminderTime, habit.scheduledDays)
+        }
+    }
+
+    fun updateUserName(newName: String) {
+        viewModelScope.launch {
+            repository.updateUserName(newName)
         }
     }
 }

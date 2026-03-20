@@ -67,6 +67,10 @@
                 android:resource="@xml/habit_widget_info" />
         </receiver>
 
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

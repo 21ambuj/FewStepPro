@@ -51,9 +51,20 @@ class HabitWidget : GlanceAppWidget() {
             
             // Fetch Habits for today
             val todayDayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
+            val todayStartMs = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            val todayEndMs = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999)
+            }.timeInMillis
+
             val habitsSnapshot = firestore.collection("users").document(uid).collection("habits").get().await()
             val habitsForToday = habitsSnapshot.documents.mapNotNull { it.toObject(Habit::class.java) }
-                .filter { it.scheduledDays.contains(todayDayOfWeek) }
+                .filter { habit -> 
+                    habit.scheduledDays.contains(todayDayOfWeek) &&
+                    (habit.startDate == null || habit.startDate <= todayEndMs) &&
+                    (habit.endDate == null || todayStartMs <= habit.endDate)
+                }
             
             val totalGoals = habitsForToday.size
             
@@ -66,7 +77,7 @@ class HabitWidget : GlanceAppWidget() {
             
             val completedGoals = logsSnapshot.size()
             val remainingGoals = (totalGoals - completedGoals).coerceAtLeast(0)
-            val progressPercent = if (totalGoals > 0) (completedGoals * 100 / totalGoals) else 0
+            val progressPercent = if (totalGoals > 0) ((completedGoals.toFloat() / totalGoals.toFloat()) * 100).toInt().coerceAtMost(100) else 0
 
             provideContent {
                 HabitWidgetContent(

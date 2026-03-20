@@ -5,11 +5,14 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import java.util.Calendar
 
 object AiNotificationScheduler {
 
     private const val AI_NOTIFICATION_ID = 1000
+    private const val BROADCAST_NOTIFICATION_ID = 2000
+    private const val TAG = "AiNotification"
 
     fun scheduleNext(context: Context) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -25,14 +28,10 @@ object AiNotificationScheduler {
         val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
         val currentMinute = calendar.get(Calendar.MINUTE)
 
-        // Target hours for professional behavioral nudges
         val targetHours = listOf(0, 8, 9, 12, 14, 17, 20, 21)
-        
-        // Find the next target hour
         var nextHour = targetHours.firstOrNull { it > currentHour || (it == currentHour && currentMinute < 1) }
         
         if (nextHour == null) {
-            // No more target hours today, schedule for the first one tomorrow
             calendar.add(Calendar.DAY_OF_YEAR, 1)
             calendar.set(Calendar.HOUR_OF_DAY, targetHours.first())
         } else {
@@ -43,10 +42,7 @@ object AiNotificationScheduler {
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
 
-        // FINAL CHECK: If calculation resulted in a past time (e.g., currently 14:01 and we set 14:00),
-        // we must find the next slot to avoid silent failure.
         if (calendar.timeInMillis <= System.currentTimeMillis()) {
-            // Re-run the search but strictly for hours > currentHour
             val strictlyNext = targetHours.firstOrNull { it > currentHour }
             if (strictlyNext == null) {
                 calendar.add(Calendar.DAY_OF_YEAR, 1)
@@ -57,8 +53,68 @@ object AiNotificationScheduler {
             calendar.set(Calendar.MINUTE, 0)
         }
 
+        Log.d(TAG, "⏰ Scheduling next AI Coach session for: ${java.util.Date(calendar.timeInMillis)}")
+        setAlarmInternal(context, alarmManager, calendar.timeInMillis, pendingIntent)
+    }
+
+    /**
+     * Schedules a specific alarm for a custom Admin Broadcast.
+     * This ensures the app wakes up exactly when the admin wants the message delivered.
+     */
+    fun scheduleBroadcast(context: Context, timestamp: Long) {
+        // Safety truncation: Reset seconds/ms to ensure exact minute trigger
+        val cal = Calendar.getInstance().apply {
+            timeInMillis = timestamp
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val truncatedTimestamp = cal.timeInMillis
+
+        if (truncatedTimestamp <= System.currentTimeMillis()) {
+            Log.d(TAG, "⏭️ Truncated timestamp $truncatedTimestamp is in the past, skipping special alarm.")
+            return
+        }
+
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(context, AiNotificationReceiver::class.java).apply {
+            action = "com.example.fewstep.CUSTOM_BROADCAST"
+        }
+        
+        // Use a unique ID based on the timestamp to allow multiple future broadcasts
+        val requestCode = BROADCAST_NOTIFICATION_ID + (truncatedTimestamp % 10000).toInt()
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        Log.d(TAG, "📢 Scheduling SPECIFIC broadcast alarm for: ${java.util.Date(truncatedTimestamp)}")
+        setAlarmInternal(context, alarmManager, truncatedTimestamp, pendingIntent)
+    }
+
+    fun scheduleTest(context: Context, delayMinutes: Int) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(context, AiNotificationReceiver::class.java).apply {
+            action = "com.example.fewstep.TEST_SCHEDULER"
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            AI_NOTIFICATION_ID + 1,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val calendar = Calendar.getInstance()
+        calendar.add(Calendar.MINUTE, delayMinutes)
+        
+        Log.d(TAG, "🧪 Diagnostic: Scheduling test alarm for: ${java.util.Date(calendar.timeInMillis)}")
+        setAlarmInternal(context, alarmManager, calendar.timeInMillis, pendingIntent)
+    }
+
+    private fun setAlarmInternal(context: Context, alarmManager: AlarmManager, timeInMillis: Long, pendingIntent: PendingIntent) {
         val alarmClockInfo = AlarmManager.AlarmClockInfo(
-            calendar.timeInMillis,
+            timeInMillis,
             PendingIntent.getActivity(
                 context,
                 0,
@@ -67,23 +123,15 @@ object AiNotificationScheduler {
             )
         )
 
-        intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-
         try {
             alarmManager.setAlarmClock(alarmClockInfo, pendingIntent)
+            Log.d(TAG, "✅ Alarm set successfully for ${java.util.Date(timeInMillis)}")
         } catch (e: Exception) {
+            Log.e(TAG, "⚠️ setAlarmClock failed: ${e.message}. Falling back...")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.timeInMillis,
-                    pendingIntent
-                )
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent)
             } else {
-                alarmManager.setExact(
-                    AlarmManager.RTC_WAKEUP,
-                    calendar.timeInMillis,
-                    pendingIntent
-                )
+                alarmManager.setExact(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent)
             }
         }
     }

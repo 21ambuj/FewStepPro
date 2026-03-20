@@ -30,8 +30,17 @@ fun AddHabitScreen(
     onBackClick: () -> Unit
 ) {
     var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Health") }
-    var selectedDate by remember { mutableStateOf("") }
+    var customCategory by remember { mutableStateOf("") }
+    var isCustomCategorySelected by remember { mutableStateOf(false) }
+    
+    var isDurationEnabled by remember { mutableStateOf(false) }
+    var startDateMillis by remember { mutableStateOf<Long?>(null) }
+    var endDateMillis by remember { mutableStateOf<Long?>(null) }
+    
+    var selectedStartDateText by remember { mutableStateOf("") }
+    var selectedEndDateText by remember { mutableStateOf("") }
     var selectedTime by remember { mutableStateOf("") }
     
     val context = LocalContext.current
@@ -43,9 +52,27 @@ fun AddHabitScreen(
         "S" to 1, "M" to 2, "T" to 3, "W" to 4, "T" to 5, "F" to 6, "S" to 7
     )
 
-    val datePickerDialog = DatePickerDialog(
+    val startDatePicker = DatePickerDialog(
         context,
-        { _, year, month, dayOfMonth -> selectedDate = "$dayOfMonth/${month + 1}/$year" },
+        { _, year, month, dayOfMonth ->
+            val cal = Calendar.getInstance()
+            cal.set(year, month, dayOfMonth)
+            startDateMillis = cal.timeInMillis
+            selectedStartDateText = "$dayOfMonth/${month + 1}/$year"
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
+
+    val endDatePicker = DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            val cal = Calendar.getInstance()
+            cal.set(year, month, dayOfMonth)
+            endDateMillis = cal.timeInMillis
+            selectedEndDateText = "$dayOfMonth/${month + 1}/$year"
+        },
         calendar.get(Calendar.YEAR),
         calendar.get(Calendar.MONTH),
         calendar.get(Calendar.DAY_OF_MONTH)
@@ -67,12 +94,21 @@ fun AddHabitScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Add New Habit", fontWeight = FontWeight.Bold) },
+                title = { Text("Add New Habit", fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.Default.ArrowBack, 
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                ),
+                windowInsets = WindowInsets.statusBars
             )
         }
     ) { padding ->
@@ -80,7 +116,7 @@ fun AddHabitScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(24.dp)
         ) {
             OutlinedTextField(
@@ -94,21 +130,56 @@ fun AddHabitScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Text("Category", fontWeight = FontWeight.Medium, color = Color.Gray)
-            Row(modifier = Modifier.padding(top = 8.dp)) {
-                listOf("Health", "Education", "Fitness").forEach { cat ->
+            Text("Category", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Row(modifier = Modifier.padding(top = 8.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Health", "Education", "Fitness", "Custom").forEach { cat ->
                     FilterChip(
-                        selected = category == cat,
-                        onClick = { category = cat },
-                        label = { Text(cat) },
-                        modifier = Modifier.padding(end = 8.dp)
+                        selected = if (cat == "Custom") isCustomCategorySelected else (category == cat && !isCustomCategorySelected),
+                        onClick = {
+                            if (cat == "Custom") {
+                                isCustomCategorySelected = true
+                            } else {
+                                isCustomCategorySelected = false
+                                category = cat
+                            }
+                        },
+                        label = { Text(cat) }
                     )
                 }
             }
 
+            if (isCustomCategorySelected) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = customCategory,
+                    onValueChange = { customCategory = it },
+                    label = { Text("Custom Category Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
 
-            Text("Schedule", fontWeight = FontWeight.Medium, color = Color.Gray)
+            OutlinedTextField(
+                value = description,
+                onValueChange = { 
+                    val words = it.trim().split(Regex("\\s+")).filter { s -> s.isNotEmpty() }
+                    if (words.size <= 20) description = it 
+                },
+                label = { Text("Short Description (Max 20 words)") },
+                placeholder = { Text("e.g. Focus on deep breathing") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                supportingText = { 
+                    val count = description.trim().split(Regex("\\s+")).filter { s -> s.isNotEmpty() }.size
+                    Text("$count/20 words") 
+                }
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text("Schedule", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -121,7 +192,7 @@ fun AddHabitScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .background(
-                                color = if (isSelected) Color(0xFF1A237E) else Color(0xFFF5F5F5),
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                 shape = RoundedCornerShape(8.dp)
                             )
                             .clickable {
@@ -135,7 +206,7 @@ fun AddHabitScreen(
                     ) {
                         Text(
                             text = label,
-                            color = if (isSelected) Color.White else Color.Black,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -144,21 +215,49 @@ fun AddHabitScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            OutlinedTextField(
-                value = selectedDate,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Start Date") },
-                trailingIcon = {
-                    IconButton(onClick = { datePickerDialog.show() }) {
-                        Icon(Icons.Default.DateRange, contentDescription = "Select Date")
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { datePickerDialog.show() },
-                shape = RoundedCornerShape(12.dp)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Set Mission Duration", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Switch(
+                    checked = isDurationEnabled,
+                    onCheckedChange = { isDurationEnabled = it }
+                )
+            }
+
+            if (isDurationEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    OutlinedTextField(
+                        value = selectedStartDateText,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Start") },
+                        modifier = Modifier.weight(1f).clickable { startDatePicker.show() },
+                        trailingIcon = {
+                            IconButton(onClick = { startDatePicker.show() }) {
+                                Icon(Icons.Default.DateRange, null)
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    OutlinedTextField(
+                        value = selectedEndDateText,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("End") },
+                        modifier = Modifier.weight(1f).clickable { endDatePicker.show() },
+                        trailingIcon = {
+                            IconButton(onClick = { endDatePicker.show() }) {
+                                Icon(Icons.Default.DateRange, null)
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -182,25 +281,25 @@ fun AddHabitScreen(
 
             Button(
                 onClick = {
+                    val finalCategory = if (isCustomCategorySelected) customCategory else category
                     when {
-                        title.isEmpty() -> {
-                            Toast.makeText(context, "Please enter a habit title!", Toast.LENGTH_SHORT).show()
-                        }
-                        selectedDate.isEmpty() -> {
-                            Toast.makeText(context, "Please select a start date!", Toast.LENGTH_SHORT).show()
-                        }
-                        selectedTime.isEmpty() -> {
-                            Toast.makeText(context, "Please select a reminder time!", Toast.LENGTH_SHORT).show()
-                        }
+                        title.isEmpty() -> Toast.makeText(context, "Enter title!", Toast.LENGTH_SHORT).show()
+                        isCustomCategorySelected && customCategory.isEmpty() -> Toast.makeText(context, "Enter custom category!", Toast.LENGTH_SHORT).show()
+                        isDurationEnabled && (startDateMillis == null || endDateMillis == null) -> Toast.makeText(context, "Set both dates!", Toast.LENGTH_SHORT).show()
+                        selectedTime.isEmpty() -> Toast.makeText(context, "Select time!", Toast.LENGTH_SHORT).show()
                         else -> {
                             viewModel.addHabit(
                                 context = context,
                                 title = title,
-                                category = category,
+                                description = description,
+                                category = finalCategory,
                                 frequency = if (selectedDays.size == 7) "Daily" else "Custom",
                                 scheduledDays = selectedDays,
-                                reminderTime = selectedTime
+                                reminderTime = selectedTime,
+                                startDate = if (isDurationEnabled) startDateMillis else null,
+                                endDate = if (isDurationEnabled) endDateMillis else null
                             )
+                            Toast.makeText(context, "Mission Created Successfully! 🚀", Toast.LENGTH_LONG).show()
                             onBackClick()
                         }
                     }
@@ -209,9 +308,12 @@ fun AddHabitScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A237E))
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
-                Text("Create Habit", fontSize = 18.sp, color = Color.White)
+                Text("Create Habit", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

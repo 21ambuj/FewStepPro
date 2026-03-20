@@ -1,5 +1,7 @@
 package com.example.fewstep.ui.screens.progress
 
+import com.example.fewstep.ui.components.AdMobBanner
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -45,30 +47,44 @@ fun ProgressScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Consistency Calendar", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        "Consistency Calendar",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            }
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFF8F9FA))
+                .background(MaterialTheme.colorScheme.background)
         ) {
             // Calendar Header (Month Switcher)
-            Card(
+        Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -88,8 +104,8 @@ fun ProgressScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                         Text(
                             text = monthYearFormat.format(currentMonthCalendar.time),
                             fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1A237E)
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.primary
                         )
 
                         IconButton(onClick = {
@@ -135,8 +151,8 @@ fun ProgressScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                 text = "Activities for ${SimpleDateFormat("MMM dd", Locale.getDefault()).format(selectedDate.time)}",
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF455A64)
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             if (logsForSelectedDate.isEmpty()) {
@@ -156,17 +172,21 @@ fun ProgressScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(modifier = Modifier.size(12.dp).background(Color(0xFF4CAF50), CircleShape))
+                                Box(modifier = Modifier.size(12.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
                                 Spacer(modifier = Modifier.width(16.dp))
-                                Text(habitName, fontWeight = FontWeight.Medium)
+                                Text(habitName, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
                             }
                         }
+                    }
+                    
+                    item {
+                        AdMobBanner()
                     }
                 }
             }
@@ -214,8 +234,8 @@ fun CalendarGrid(
                     .clip(RoundedCornerShape(12.dp))
                     .background(
                         when {
-                            isSelected -> Color(0xFF1A237E)
-                            isToday -> Color(0xFFE8EAF6)
+                            isSelected -> MaterialTheme.colorScheme.primary
+                            isToday -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                             else -> Color.Transparent
                         }
                     )
@@ -228,15 +248,15 @@ fun CalendarGrid(
                         fontSize = 14.sp,
                         fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
                         color = when {
-                            isSelected -> Color.White
-                            !isCurrentMonth -> Color.LightGray
-                            isToday -> Color(0xFF1A237E)
-                            else -> Color.Black
+                            isSelected -> MaterialTheme.colorScheme.onPrimary
+                            !isCurrentMonth -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                            isToday -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.onSurface
                         }
                     )
                     if (hasLogs && !isSelected) {
                         Spacer(modifier = Modifier.height(2.dp))
-                        Box(modifier = Modifier.size(4.dp).background(Color(0xFF4CAF50), CircleShape))
+                        Box(modifier = Modifier.size(4.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
                     }
                 }
             }

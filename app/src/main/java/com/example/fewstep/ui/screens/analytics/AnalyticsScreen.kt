@@ -1,5 +1,8 @@
 package com.example.fewstep.ui.screens.analytics
 
+import com.example.fewstep.ui.components.AdMobBanner
+
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -86,17 +89,31 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Analytics & Insights", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFF8F9FA))
-            )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        "Analytics & Insights",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+            }
         },
-        containerColor = Color(0xFFF8F9FA)
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -104,7 +121,7 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                 .padding(padding)
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 32.dp, top = 8.dp)
+            contentPadding = PaddingValues(bottom = 32.dp, top = 0.dp)
         ) {
             // Stats Row
             item {
@@ -146,9 +163,9 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Insights, contentDescription = null, tint = Color(0xFF1A237E), modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Insights, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("7-Day Activity", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A237E))
+                            Text("7-Day Activity", fontWeight = FontWeight.Black, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
                         }
                         Spacer(Modifier.height(16.dp))
                         val maxVal = (last7Days.maxOfOrNull { it.second } ?: 1).coerceAtLeast(1)
@@ -172,7 +189,7 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                                     Text(
                                         count.toString(),
                                         fontSize = 10.sp,
-                                        color = if (count > 0) Color(0xFF1A237E) else Color.LightGray,
+                                        color = if (count > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                         fontWeight = FontWeight.Bold
                                     )
                                     Spacer(Modifier.height(4.dp))
@@ -182,12 +199,12 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                                             .padding(horizontal = 4.dp)
                                             .height((animHeight * 80f).dp.coerceAtLeast(4.dp))
                                             .background(
-                                                if (count > 0) Color(0xFF3D5AFE) else Color(0xFFE8EAF6),
+                                                if (count > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                                 RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp)
                                             )
                                     )
                                     Spacer(Modifier.height(4.dp))
-                                    Text(day, fontSize = 10.sp, color = Color.Gray)
+                                    Text(day, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
@@ -201,11 +218,11 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(2.dp)
                     ) {
                         Column(modifier = Modifier.padding(20.dp)) {
-                            Text("Habit Categories", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A237E))
+                            Text("Habit Categories", fontWeight = FontWeight.Black, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
                             Spacer(Modifier.height(16.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -234,8 +251,8 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                                         }
                                     }
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(totalHabits.toString(), fontWeight = FontWeight.Black, fontSize = 22.sp, color = Color(0xFF1A237E))
-                                        Text("habits", fontSize = 10.sp, color = Color.Gray)
+                                        Text(totalHabits.toString(), fontWeight = FontWeight.Black, fontSize = 22.sp, color = MaterialTheme.colorScheme.primary)
+                                        Text("habits", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                 }
 
@@ -298,11 +315,11 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        Text("💡 Behavioral Insights", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A237E))
+                        Text("💡 Behavioral Insights", fontWeight = FontWeight.Black, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.height(12.dp))
 
                         val currentStreakValue = userData?.currentStreak ?: 0
@@ -328,25 +345,88 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
             userData?.let { user ->
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4FF)),
-                        elevation = CardDefaults.cardElevation(1.dp)
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Text("⚡ XP & Level", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF1A237E))
-                            Spacer(Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Level
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                XpStatItem("Level", "${user.level}", Color(0xFF3D5AFE))
-                                XpStatItem("XP Earned", "${user.xp}", Color(0xFFFF7043))
-                                XpStatItem("Streak", "${userData?.currentStreak ?: 0}d 🔥", Color(0xFF43A047))
+                                Text(
+                                    text = "${user.level}",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 20.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Level",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            VerticalDivider(
+                                modifier = Modifier.height(24.dp).width(1.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+
+                            // XP
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "${user.xp}",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 20.sp,
+                                    color = Color(0xFFFF7043)
+                                )
+                                Text(
+                                    text = "Total XP",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            VerticalDivider(
+                                modifier = Modifier.height(24.dp).width(1.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                            )
+
+                            // Streak
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "${user.currentStreak}d",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 20.sp,
+                                    color = Color(0xFF43A047)
+                                )
+                                Text(
+                                    text = "Streak",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
                 }
+            }
+
+            item {
+                AdMobBanner()
             }
         }
     }
@@ -381,7 +461,7 @@ fun StatCard(modifier: Modifier, title: String, value: String, icon: androidx.co
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
@@ -391,14 +471,14 @@ fun StatCard(modifier: Modifier, title: String, value: String, icon: androidx.co
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .background(color.copy(alpha = 0.12f), CircleShape),
+                    .background(color.copy(alpha = 0.15f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.height(8.dp))
-            Text(value, fontWeight = FontWeight.Black, fontSize = 20.sp, color = Color(0xFF1A237E), textAlign = TextAlign.Center)
-            Text(title, fontSize = 10.sp, color = Color.Gray, textAlign = TextAlign.Center, lineHeight = 14.sp)
+            Text(value, fontWeight = FontWeight.Black, fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
+            Text(title, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, lineHeight = 14.sp)
         }
     }
 }
@@ -407,6 +487,6 @@ fun StatCard(modifier: Modifier, title: String, value: String, icon: androidx.co
 fun XpStatItem(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontWeight = FontWeight.Black, fontSize = 20.sp, color = color)
-        Text(label, fontSize = 12.sp, color = Color.Gray)
+        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
