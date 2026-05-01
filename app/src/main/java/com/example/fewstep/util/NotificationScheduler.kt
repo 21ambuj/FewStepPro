@@ -103,4 +103,45 @@ object NotificationScheduler {
         )
         alarmManager.cancel(pendingIntent)
     }
+
+    fun showWalkProgressNotification(context: Context, steps: Int, goal: Int) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val channelId = "walk_progress"
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                channelId,
+                "Walk Progress",
+                android.app.NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Daily step progress updates"
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val remaining = (goal - steps).coerceAtLeast(0)
+        val message = if (remaining > 0) {
+            "You have completed $steps steps, only $remaining steps to complete today's goal."
+        } else {
+            "Goal reached! You've completed $steps steps today. Amazing work! 🚶🔥"
+        }
+
+        val intent = Intent(context, com.example.fewstep.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context, 1001, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = androidx.core.app.NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(com.example.fewstep.R.mipmap.ic_launcher)
+            .setContentTitle("Keep Moving! 🚶")
+            .setContentText(message)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        notificationManager.notify(1001, builder.build())
+    }
 }

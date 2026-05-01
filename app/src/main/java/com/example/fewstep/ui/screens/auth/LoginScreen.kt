@@ -40,6 +40,40 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val authState by viewModel.authState.collectAsState()
+    var showResetDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(authState) {
+        if (authState is AuthState.Success) {
+            onLoginSuccess()
+        }
+        if (authState is AuthState.PasswordResetSent) {
+            showResetDialog = true
+        }
+    }
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showResetDialog = false 
+                viewModel.resetState()
+            },
+            title = { Text("Reset Password Link Sent 📧", fontWeight = FontWeight.Bold) },
+            text = { 
+                Text("A password reset link has been sent to $email. Please check your inbox and follow the link to create a new password.") 
+            },
+            confirmButton = {
+                TextButton(onClick = { 
+                    showResetDialog = false 
+                    viewModel.resetState()
+                }) {
+                    Text("Got it", fontWeight = FontWeight.Bold)
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
 
     val infiniteTransition = rememberInfiniteTransition()
     val bgOffset by infiniteTransition.animateFloat(
@@ -58,19 +92,7 @@ fun LoginScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
-                    ),
-                    start = Offset(0f, bgOffset),
-                    end = Offset(bgOffset + 500f, 1500f)
-                )
-            ),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -142,17 +164,42 @@ fun LoginScreen(
                     )
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Text(
+                        text = "Forgot Password?",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable { viewModel.sendPasswordResetEmail(email) }
+                    )
+                }
 
-                val authState by viewModel.authState.collectAsState()
+                Spacer(modifier = Modifier.height(32.dp))
 
                 if (authState is AuthState.Error) {
                     Text(
                         text = (authState as AuthState.Error).message,
-                        color = Color.Red,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
+                }
+
+                if (authState is AuthState.Success) {
+                   val msg = (authState as AuthState.Success).message
+                   if (msg.isNotEmpty()) {
+                        Text(
+                            text = msg,
+                            color = Color(0xFF4CAF50), // Success Green
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                   }
                 }
 
                 Button(
@@ -167,14 +214,14 @@ fun LoginScreen(
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    if (authState is AuthState.Loading) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+                    if (authState !is AuthState.Loading) {
+                        Text("Login with Password", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     } else {
-                        Text("Continue", fontSize = 18.sp, fontWeight = FontWeight.Black)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 
                 Text(text = "OR", color = Color.Gray, fontSize = 14.sp)
 
@@ -183,7 +230,7 @@ fun LoginScreen(
                 val context = LocalContext.current
                 val coroutineScope = rememberCoroutineScope()
 
-                Button(
+                Surface(
                     onClick = {
                         val credentialManager = CredentialManager.create(context)
                         val webClientId = context.getString(R.string.default_web_client_id)
@@ -193,17 +240,14 @@ fun LoginScreen(
                             .setServerClientId(webClientId)
                             .setAutoSelectEnabled(true)
                             .build()
- 
+  
                         val request = GetCredentialRequest.Builder()
                             .addCredentialOption(googleIdOption)
                             .build()
- 
+  
                         coroutineScope.launch {
                             try {
-                                val result = credentialManager.getCredential(
-                                    request = request,
-                                    context = context
-                                )
+                                val result = credentialManager.getCredential(request = request, context = context)
                                 val credential = result.credential
                                 if (credential is androidx.credentials.CustomCredential &&
                                     credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
@@ -211,9 +255,7 @@ fun LoginScreen(
                                     val authCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
                                     viewModel.loginWithGoogle(authCredential)
                                 }
-                            } catch (e: GetCredentialException) {
-                                e.printStackTrace()
-                            }
+                            } catch (e: GetCredentialException) { /* Handled */ }
                         }
                     },
                     enabled = authState !is AuthState.Loading,
@@ -221,23 +263,26 @@ fun LoginScreen(
                         .fillMaxWidth()
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 2.dp
                 ) {
-                    Text("🌐 Sign in with Google", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-
-                LaunchedEffect(authState) {
-                    if (authState is AuthState.Success) {
-                        viewModel.resetState() // Reset for next time if they log out
-                        onLoginSuccess()
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_compass), // Representative
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.Unspecified
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Sign in with Google", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Row {
                     Text("Don't have an account? ", color = MaterialTheme.colorScheme.onSurfaceVariant)

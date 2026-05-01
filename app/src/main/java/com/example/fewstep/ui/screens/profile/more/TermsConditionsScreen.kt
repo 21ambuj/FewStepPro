@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun TermsConditionsScreen(onBackClick: () -> Unit) {
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+
     Scaffold(
         topBar = {
             Column(
@@ -65,37 +67,51 @@ fun TermsConditionsScreen(onBackClick: () -> Unit) {
             }
 
             Text(
-                text = "Service Agreement",
+                text = "Service Summary",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
             Text(
-                text = "By using FewStep, you agree to the following terms and conditions:",
+                text = "By using FewStep, you agree to our standard terms of service. Here is a quick overview:",
                 fontSize = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             TermItem(
-                title = "Acceptable Use",
-                content = "• Use the app for personal and non-commercial purposes only\n• Not misuse or attempt to harm the application\n• Accept that features may be updated or changed over time"
+                title = "Sync & Accounts",
+                content = "FewStep stores your habit data in the cloud so you can access your routines and progress on any device using your account credentials."
+            )
+
+            TermItem(
+                title = "Usage Policy",
+                content = "Use FewStep for personal productivity. Do not attempt to reverse engineer or harm the service."
             )
 
             TermItem(
                 title = "Disclaimers",
-                content = "FewStep is provided \"as is\" without warranties of any kind. We are not responsible for any data loss or misuse caused by user actions."
+                content = "The service is provided \"as is\". We are not responsible for any personal data loss or mission failures."
             )
 
             Spacer(Modifier.height(8.dp))
-            
+
+            Button(
+                onClick = { uriHandler.openUri("https://21ambuj.github.io/FewStep-/terms.html") },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+            ) {
+                Text("VIEW FULL TERMS & CONDITIONS", fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
                 Text(
-                    text = "Last Updated: March 2026",
+                    text = "Last Updated: March 20, 2026",
                     modifier = Modifier.padding(16.dp),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

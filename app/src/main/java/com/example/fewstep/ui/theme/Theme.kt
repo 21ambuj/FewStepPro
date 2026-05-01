@@ -9,28 +9,43 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
     primary = IndigoPrimaryDark,
     secondary = IndigoSecondaryDark,
+    primaryContainer = Color(0xFF312E81), // Deepest Indigo for dark mode containers
+    secondaryContainer = Color(0xFF1E1B4B), // Even deeper indigo
     background = DeepDarkBackground,
     surface = DeepDarkSurface,
-    onPrimary = TextPrimaryDark,
-    onSecondary = TextPrimaryDark,
+    surfaceVariant = DeepDarkContainer,
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onPrimaryContainer = TextPrimaryDark,
+    onSecondaryContainer = TextPrimaryDark,
     onBackground = TextPrimaryDark,
-    onSurface = TextPrimaryDark
+    onSurface = TextPrimaryDark,
+    onSurfaceVariant = TextSecondaryDark,
+    outlineVariant = Color(0xFF334155) // Slate 700 for distinct borders
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = IndigoPrimary,
     secondary = IndigoSecondary,
-    background = SlateBackground,
-    surface = SlateSurface,
-    onPrimary = SlateSurface,
-    onSecondary = SlateSurface,
+    primaryContainer = Color(0xFFE0E7FF), // Soft Indigo
+    secondaryContainer = Color(0xFFEEF2FF), // Very soft Indigo
+    background = SoftLightBackground,
+    surface = SoftLightSurface,
+    surfaceVariant = SoftLightContainer,
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onPrimaryContainer = IndigoPrimary,
+    onSecondaryContainer = IndigoPrimary,
     onBackground = TextPrimary,
-    onSurface = TextPrimary
+    onSurface = TextPrimary,
+    onSurfaceVariant = TextSecondary,
+    outlineVariant = Color(0xFFE2E8F0) // Zinc 200 for subtle borders
 )
 
 @Composable

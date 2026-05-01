@@ -11,17 +11,29 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
+import com.example.fewstep.util.SecurityUtils
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreOptionsScreen(
+    authViewModel: com.example.fewstep.ui.viewmodel.AuthViewModel,
     onBackClick: () -> Unit,
     onAiCoachClick: () -> Unit,
     onContactClick: () -> Unit,
@@ -29,26 +41,92 @@ fun MoreOptionsScreen(
     onTermsClick: () -> Unit,
     onDeveloperClick: () -> Unit,
     onAboutClick: () -> Unit,
+    onAccountSettingsClick: () -> Unit,
     isAdmin: Boolean = false,
     onAdminClick: () -> Unit = {}
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("More Options", fontWeight = FontWeight.Black) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+    val authState by authViewModel.authState.collectAsState()
+    val userEmail = (authState as? com.example.fewstep.ui.viewmodel.AuthState.Success)?.user?.email ?: ""
+    val context = LocalContext.current
+    var showPinDialog by remember { mutableStateOf(false) }
+    var pinInput by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf(false) }
+
+    if (showPinDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showPinDialog = false 
+                pinInput = ""
+                pinError = false
+            },
+            title = { Text("Admin Unlock") },
+            text = {
+                Column {
+                    Text("Enter your 4-digit PIN to access the dashboard.")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = pinInput,
+                        onValueChange = { if (it.length <= 4) pinInput = it },
+                        label = { Text("PIN") },
+                        isError = pinError,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        singleLine = true
+                    )
+                    if (pinError) {
+                        Text("Incorrect PIN", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
-                ),
-                windowInsets = WindowInsets.statusBars
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val prefs = SecurityUtils.getEncryptedPrefs(context)
+                    val savedHash = prefs.getString("admin_pin_hash", null)
+                    if (savedHash == SecurityUtils.hashPin(pinInput)) {
+                        showPinDialog = false
+                        pinInput = ""
+                        pinError = false
+                        onAdminClick()
+                    } else {
+                        pinError = true
+                    }
+                }) {
+                    Text("Unlock")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showPinDialog = false 
+                    pinInput = ""
+                    pinError = false
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Settings & App Center", 
+                    fontWeight = FontWeight.Black, 
+                    fontSize = 20.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -57,6 +135,19 @@ fun MoreOptionsScreen(
             contentPadding = PaddingValues(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // --- ACCOUNT SETTINGS TILE ---
+            item {
+                MoreOptionTile(
+                    title = "Account Settings",
+                    subtitle = "Reset password & manage account",
+                    icon = Icons.Default.ManageAccounts,
+                    iconColor = MaterialTheme.colorScheme.primary,
+                    onClick = onAccountSettingsClick
+                )
+            }
+
+
+
             item {
                 MoreOptionTile(
                     title = "AI Coach",
@@ -124,7 +215,15 @@ fun MoreOptionsScreen(
                         subtitle = "Control Center & User Management",
                         icon = Icons.Default.AdminPanelSettings,
                         iconColor = Color(0xFFD32F2F),
-                        onClick = onAdminClick
+                        onClick = {
+                            val prefs = SecurityUtils.getEncryptedPrefs(context)
+                            val savedHash = prefs.getString("admin_pin_hash", null)
+                            if (savedHash != null) {
+                                showPinDialog = true
+                            } else {
+                                onAdminClick()
+                            }
+                        }
                     )
                 }
             }
@@ -137,9 +236,10 @@ fun MoreOptionsScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "Version 1.0.0",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            "Version 4.2.1",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(top = 8.dp)
                         )
                         Text(
                             text = "FewStep",
@@ -168,7 +268,7 @@ fun MoreOptionTile(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier.padding(16.dp),

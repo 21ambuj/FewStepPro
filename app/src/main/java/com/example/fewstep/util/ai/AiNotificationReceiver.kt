@@ -138,12 +138,21 @@ class AiNotificationReceiver : BroadcastReceiver() {
                     if (incompleteHabits.isNotEmpty()) {
                         val habitToRemind = incompleteHabits.random()
                         android.util.Log.d("AiNotification", "⏰ Reminding for habit: ${habitToRemind.title}")
-                        val message = AiNotificationEngine.getMessage(habitToRemind.title, hour, streak)
+                        val message = AiNotificationEngine.getMessage(
+                            habitToRemind.title, 
+                            hour, 
+                            streak,
+                            user?.name ?: "Champion",
+                            user?.rankTitle ?: "Novice"
+                        )
                         showNotification(context, "FewStep Coach 🤖", message, 100)
                     } 
                     else {
                         android.util.Log.d("AiNotification", "🎉 All habits done! Showing general motivation.")
-                        val message = AiNotificationEngine.getGeneralMotivation()
+                        val message = AiNotificationEngine.getGeneralMotivation(
+                            user?.name ?: "Champion",
+                            user?.rankTitle ?: "Novice"
+                        )
                         showNotification(context, "FewStep Coach 🤖", message, 100)
                     }
                 } catch (e: Exception) {
@@ -153,16 +162,9 @@ class AiNotificationReceiver : BroadcastReceiver() {
         }
 
         private fun detectLanguage(text: String): String {
-            // Priority 1: Check for Devanagari script (Hindi characters)
+            // If it contains Devanagari script, it's strictly Hindi
             val hasHindiScript = text.any { it in '\u0900'..'\u097F' }
-            if (hasHindiScript) return "hi"
-            
-            // Priority 2: Check for Hinglish (Hindi words written in English script)
-            val hinglishKeywords = listOf("hai", "ko", "se", "ki", "aur", "toh", "ka", "ke", "mein", "bhi", "yeh", "kya", "kar")
-            val words = text.lowercase().split(Regex("[^a-zA-Z]+")).filter { it.isNotBlank() }
-            val isHinglish = words.any { it in hinglishKeywords }
-            
-            return if (isHinglish) "hi" else "en"
+            return if (hasHindiScript) "hi" else "en"
         }
 
         private fun showNotification(context: Context, title: String, message: String, notificationId: Int) {

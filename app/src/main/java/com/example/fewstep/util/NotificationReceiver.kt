@@ -11,6 +11,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
 
+import kotlinx.coroutines.tasks.await
+
 import com.example.fewstep.R
 
 class NotificationReceiver : BroadcastReceiver() {
@@ -107,12 +109,17 @@ class NotificationReceiver : BroadcastReceiver() {
         )
 
         // Trigger Voice Reminder if not on silent
-        // Trigger Voice Reminder if not on silent
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
         if (audioManager.ringerMode == android.media.AudioManager.RINGER_MODE_NORMAL) {
+            // Start voice immediately with a default name so there's zero delay.
+            // This is the main fix: we don't wait for Firestore.
+            val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
+            val displayName = auth.currentUser?.displayName?.split(" ")?.firstOrNull() ?: "Champion"
+            
             val voiceIntent = Intent(context, VoiceReminderService::class.java).apply {
                 putExtra(VoiceReminderService.EXTRA_HABIT_TITLE, title)
                 putExtra(VoiceReminderService.EXTRA_HABIT_TIME, time)
+                putExtra(VoiceReminderService.EXTRA_USER_NAME, displayName)
                 putExtra(VoiceReminderService.EXTRA_LOCALE, "en")
             }
             ContextCompat.startForegroundService(context, voiceIntent)

@@ -46,10 +46,10 @@ fun BlockedScreen(onLogout: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                "You are temporarily blocked.\nPlease contact us at ambuj20maurya@gmail.com",
+                "You are temporarily blocked from using FewStep.\nPlease contact us for assistance at: mauryaambuj21@gmail.com",
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 14.sp
+                fontSize = 15.sp
             )
             
             Spacer(modifier = Modifier.height(48.dp))

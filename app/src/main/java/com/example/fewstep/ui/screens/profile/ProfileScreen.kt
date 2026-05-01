@@ -1,6 +1,8 @@
 package com.example.fewstep.ui.screens.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,7 +35,9 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     onLeaderboardClick: () -> Unit,
     onMoreOptionsClick: () -> Unit,
-    onBackClick: () -> Unit
+    onLevelRanksClick: () -> Unit,
+    onBackClick: () -> Unit,
+    onStreakClick: () -> Unit = {}
 ) {
     val isDarkMode by themeViewModel.isDarkMode.collectAsState()
     val authState by authViewModel.authState.collectAsState()
@@ -74,6 +78,7 @@ fun ProfileScreen(
                     )
                 }
             },
+
             confirmButton = {
                 Button(
                     onClick = {
@@ -121,32 +126,68 @@ fun ProfileScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = MaterialTheme.colorScheme.onBackground)
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = MaterialTheme.colorScheme.onBackground)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Power Profile",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.weight(1f)
+                )
+                Row(
+                    modifier = Modifier
+                        .background(Color(0xFFFFEBEE), RoundedCornerShape(12.dp))
+                        .clickable { showLogoutDialog = true }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Logout, 
+                        null, 
+                        tint = Color.Red,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
                     Text(
-                        "Power Profile",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onBackground
+                        "Logout", 
+                        color = Color.Red, 
+                        fontSize = 12.sp, 
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
         }
     ) { padding ->
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val shareProgress = {
+            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                val shareText = """
+                    🚀 My FewStep Power Progress!
+                    👤 Champion: $userName
+                    🔥 Current Streak: ${user?.currentStreak ?: 0} Days
+                    ⭐ Level: ${user?.level ?: 1} (${user?.rankTitle ?: "NOVICE"})
+                    💎 Total XP Earned: ${user?.xp ?: 0}
+                    
+                    Join me on FewStep and let's conquer our goals together! 🎯
+                    👉 https://21ambuj.github.io/FewStep-/
+                """.trimIndent()
+                putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+            }
+            context.startActivity(android.content.Intent.createChooser(shareIntent, "Share My Progress"))
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -155,49 +196,19 @@ fun ProfileScreen(
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Header Card
+            // Consolidated Power Card
             item {
-                ProfileHeaderCard(
+                UnifiedPowerCard(
                     name = userName,
                     email = userEmail,
                     level = user?.level ?: 1,
                     rankTitle = user?.rankTitle ?: "NOVICE",
-                    onEditClick = { showEditNameDialog = true }
-                )
-            }
-
-            // Stats Row
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    StatCard(
-                        modifier = Modifier.weight(1f),
-                        label = "Current Streak",
-                        value = "${user?.currentStreak ?: 0} Days",
-                        icon = Icons.Default.Whatshot,
-                        color = Color(0xFFFF5722)
-                    )
-                    StatCard(
-                        modifier = Modifier.weight(1f),
-                        label = "Total XP",
-                        value = "${user?.xp ?: 0}",
-                        icon = Icons.Default.Star,
-                        color = Color(0xFFFFA000)
-                    )
-                }
-            }
-
-            // Leaderboard Section
-            item {
-                ProfileMenuCard(
-                    title = "Global Leaderboard",
-                    subtitle = "See where you stand globally",
-                    icon = Icons.Default.EmojiEvents,
-                    iconColor = Color(0xFFFBC02D),
-                    iconBgColor = Color(0xFFFFF9C4),
-                    onClick = onLeaderboardClick
+                    streak = user?.currentStreak ?: 0,
+                    xp = user?.xp ?: 0,
+                    onEditClick = { showEditNameDialog = true },
+                    onShareClick = shareProgress,
+                    onLevelClick = onLevelRanksClick,
+                    onStreakClick = onStreakClick
                 )
             }
 
@@ -215,10 +226,22 @@ fun ProfileScreen(
                 )
             }
 
-            // More Section
+            // Leaderboard Section
             item {
                 ProfileMenuCard(
-                    title = "More Options",
+                    title = "Global Leaderboard",
+                    subtitle = "See where you stand globally",
+                    icon = Icons.Default.EmojiEvents,
+                    iconColor = Color(0xFFFBC02D),
+                    iconBgColor = Color(0xFFFFF9C4),
+                    onClick = onLeaderboardClick
+                )
+            }
+
+            // Settings & App Center Section
+            item {
+                ProfileMenuCard(
+                    title = "Settings & App Center",
                     subtitle = "Privacy, Terms, About & AI Coach",
                     icon = Icons.Default.LinearScale,
                     iconColor = Color(0xFF673AB7),
@@ -228,18 +251,7 @@ fun ProfileScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = { showLogoutDialog = true },
-                    modifier = Modifier.fillMaxWidth().height(54.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE), contentColor = Color.Red),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Logout Session", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
 
@@ -247,104 +259,208 @@ fun ProfileScreen(
 }
 
 @Composable
-fun ProfileHeaderCard(name: String, email: String, level: Int, rankTitle: String, onEditClick: () -> Unit) {
+fun UnifiedPowerCard(
+    name: String,
+    email: String,
+    level: Int,
+    rankTitle: String,
+    streak: Int,
+    xp: Long,
+    onEditClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onLevelClick: () -> Unit,
+    onStreakClick: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                            MaterialTheme.colorScheme.surface
+                        )
+                    )
+                )
+                .padding(20.dp)
+        ) {
+            // Top Section: User Identity & Edit Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
                 Surface(
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(56.dp),
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.Person,
-                            null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            name,
-                            fontSize = 20.sp,
+                            name.take(1).uppercase(),
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        IconButton(
-                            onClick = onEditClick,
-                            modifier = Modifier.size(32.dp).padding(start = 4.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Edit,
-                                "Edit Name",
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
                     }
-                    Text(
-                        email,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
                 
-                Surface(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = RoundedCornerShape(10.dp)
-                ) {
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            name,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                        
+                        Button(
+                            onClick = onEditClick,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.secondary
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Icon(Icons.Default.Edit, null, modifier = Modifier.size(12.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Edit", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(2.dp))
+                    
                     Text(
-                        "LVL $level",
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 10.sp
+                        email, 
+                        fontSize = 11.sp, 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
             }
             
             Spacer(modifier = Modifier.height(16.dp))
-            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-            Spacer(modifier = Modifier.height(16.dp))
             
+            // Level & Rank Section (Pill/Circular Badge Style)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), RoundedCornerShape(50.dp))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Verified,
-                        null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
+                    val rankColor = when {
+                        level >= 101 -> Color(0xFFFF3D00)
+                        level >= 100 -> Color(0xFFFFCC00)
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    Icon(Icons.Default.EmojiEvents, null, tint = rankColor, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
                     Text(
                         rankTitle,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Black,
+                        color = rankColor,
+                        letterSpacing = 0.5.sp
                     )
                 }
                 
-                Text(
-                    "Account Verified",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium
-                )
+                Surface(
+                    color = Color.Transparent, // Removed background
+                    shape = RoundedCornerShape(50.dp),
+                    modifier = Modifier.clickable { onLevelClick() }
+                ) {
+                    Text(
+                        "Level - $level", // Full word used
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        color = if (level >= 101) Color(0xFFFF3D00) else MaterialTheme.colorScheme.primary, // Themed color
+                        fontWeight = FontWeight.Black,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Stats Grid (Floating Style)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Streak Card
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
+                        .border(1.dp, Color(0xFFFF5722).copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+                        .clickable { onStreakClick() }
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.Whatshot, null, tint = Color(0xFFFF5722), modifier = Modifier.size(28.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text("$streak Days", fontWeight = FontWeight.Black, fontSize = 18.sp)
+                    Text("Current Streak", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                // XP Card
+                
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
+                        .border(1.dp, Color(0xFFFFA000).copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+                        .clickable { onLevelClick() }
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFA000), modifier = Modifier.size(28.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text("$xp", fontWeight = FontWeight.Black, fontSize = 18.sp)
+                    Text("Total XP Earned", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Share Button
+            Button(
+                onClick = onShareClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.secondary
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+            ) {
+                Icon(Icons.Default.IosShare, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("SHARE YOUR SUCCESS", fontWeight = FontWeight.Black, fontSize = 13.sp)
             }
         }
     }
@@ -366,7 +482,7 @@ fun ProfileMenuCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         onClick = { if (!isToggle) onClick?.invoke() }
     ) {
         Row(
@@ -407,12 +523,12 @@ fun ProfileMenuCard(
 }
 
 @Composable
-fun StatCard(modifier: Modifier, label: String, value: String, icon: ImageVector, color: Color) {
+fun StatCard(modifier: Modifier, label: String, value: String, icon: ImageVector, color: Color, onClick: (() -> Unit)? = null) {
     Card(
-        modifier = modifier,
+        modifier = modifier.then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))

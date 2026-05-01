@@ -12,7 +12,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,29 +47,24 @@ fun ProgressScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        "Consistency Calendar",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Analytics & Insight", 
+                    fontWeight = FontWeight.Black, 
+                    fontSize = 20.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
             }
         }
     ) { padding ->
@@ -165,14 +161,15 @@ fun ProgressScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
-                    items(logsForSelectedDate.size) { index ->
+                    items(logsForSelectedDate.size, key = { index -> logsForSelectedDate[index].id }) { index ->
                         val log = logsForSelectedDate[index]
                         val habitName = habits.find { it.id == log.habitId }?.title ?: "Unknown Habit"
                         
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
@@ -220,7 +217,7 @@ fun CalendarGrid(
         modifier = Modifier.height(280.dp),
         userScrollEnabled = false
     ) {
-        items(dates) { dateCal ->
+        items(dates, key = { sdf.format(it.time) }) { dateCal ->
             val isCurrentMonth = dateCal.get(Calendar.MONTH) == currentMonth.get(Calendar.MONTH)
             val dateStr = sdf.format(dateCal.time)
             val hasLogs = allLogs.any { it.date == dateStr && it.completed }
@@ -263,3 +260,5 @@ fun CalendarGrid(
         }
     }
 }
+
+

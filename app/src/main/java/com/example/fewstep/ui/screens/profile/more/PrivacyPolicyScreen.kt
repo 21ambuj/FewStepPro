@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun PrivacyPolicyScreen(onBackClick: () -> Unit) {
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+
     Scaffold(
         topBar = {
             Column(
@@ -65,49 +67,55 @@ fun PrivacyPolicyScreen(onBackClick: () -> Unit) {
             }
 
             Text(
-                text = "Your Privacy Matters",
+                text = "FewStep Privacy Summary",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            PrivacySection(
-                title = "Data Collection",
-                content = "FewStep respects your privacy. We do not collect any personal data without your permission."
+            Text(
+                text = "We value your privacy and are committed to protecting it. Here is a brief summary of our practices:",
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             PrivacySection(
-                title = "Security",
-                content = "All user data such as progress, streaks, and preferences are stored securely."
+                title = "Data Management",
+                content = "FewStep uses Firebase to securely store your habits and progress so you can sync them across any device using your account credentials."
             )
 
             PrivacySection(
-                title = "Analytics",
-                content = "We may use basic analytics to improve app performance and user experience."
+                title = "Ads & Analytics",
+                content = "We use Google AdMob for advertisements and basic analytics to improve your experience."
             )
 
             PrivacySection(
-                title = "Third Parties",
-                content = "We do not sell or share your personal data with third parties."
+                title = "Data Security",
+                content = "Your data is protected using industry-standard security through Google cloud services."
             )
+
+            Spacer(Modifier.height(8.dp))
+
+            Button(
+                onClick = { uriHandler.openUri("https://21ambuj.github.io/FewStep-/privacy.html") },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("VIEW FULL PRIVACY POLICY", fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+            }
 
             Card(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        "Questions or Concerns?",
+                        "Legal Contact",
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Spacer(Modifier.height(4.dp))
-                    Text(
-                        "If you have any concerns, contact us at:",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
                     Text(
                         "ambuj20maurya@gmail.com",
                         fontSize = 14.sp,
@@ -116,6 +124,14 @@ fun PrivacyPolicyScreen(onBackClick: () -> Unit) {
                     )
                 }
             }
+            
+            Text(
+                text = "Last Updated: March 20, 2026",
+                fontSize = 12.sp,
+                color = Color.Gray,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
     }
 }

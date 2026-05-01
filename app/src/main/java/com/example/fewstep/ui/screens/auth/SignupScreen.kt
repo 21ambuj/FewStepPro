@@ -23,6 +23,17 @@ import androidx.compose.ui.unit.sp
 import com.example.fewstep.ui.viewmodel.AuthViewModel
 import com.example.fewstep.ui.viewmodel.AuthState
 import kotlinx.coroutines.delay
+import androidx.compose.ui.platform.LocalContext
+import com.example.fewstep.R
+import kotlinx.coroutines.launch
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.auth.GoogleAuthProvider
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 
 @Composable
 fun SignupScreen(
@@ -33,6 +44,63 @@ fun SignupScreen(
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val authState by viewModel.authState.collectAsState()
+    var showVerificationDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(authState) {
+        if (authState is AuthState.Success) {
+            onSignupSuccess()
+        }
+        if (authState is AuthState.VerificationLinkSent) {
+            showVerificationDialog = true
+        }
+    }
+
+    if (showVerificationDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showVerificationDialog = false 
+                viewModel.resetState()
+            },
+            title = { Text("Verify your Email 📧", fontWeight = FontWeight.Bold) },
+            text = { 
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("We've sent a verification email to $email. Please click the link in your inbox to verify your account.")
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(32.dp),
+                        strokeWidth = 3.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Text(
+                        text = "Waiting for you to verify...",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { 
+                    showVerificationDialog = false 
+                    viewModel.resetState()
+                    onNavigateToLogin()
+                }) {
+                    Text("I'll do it later", color = Color.Gray)
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    }
 
     val infiniteTransition = rememberInfiniteTransition()
     val bgOffset by infiniteTransition.animateFloat(
@@ -51,19 +119,7 @@ fun SignupScreen(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                        MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
-                    ),
-                    start = Offset(0f, bgOffset),
-                    end = Offset(bgOffset + 500f, 1500f)
-                )
-            ),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -157,19 +213,19 @@ fun SignupScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                val authState by viewModel.authState.collectAsState()
-
                 if (authState is AuthState.Error) {
+                    val errorMsg = (authState as AuthState.Error).message
                     Text(
-                        text = (authState as AuthState.Error).message,
-                        color = Color.Red,
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        text = errorMsg,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
                 }
 
                 Button(
-                    onClick = { viewModel.signupUser(name, email, password) },
+                    onClick = { viewModel.requestSignupVerification(name, email, password) },
                     enabled = authState !is AuthState.Loading,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -180,21 +236,75 @@ fun SignupScreen(
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    if (authState is AuthState.Loading) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+                    if (authState !is AuthState.Loading) {
+                        Text("Verify & Create Account", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     } else {
-                        Text("Create Account", fontSize = 18.sp, fontWeight = FontWeight.Black)
-                    }
-                }
-
-                LaunchedEffect(authState) {
-                    if (authState is AuthState.Success) {
-                        viewModel.resetState() // Reset for next time if they log out
-                        onSignupSuccess()
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(text = "OR", color = Color.Gray, fontSize = 14.sp)
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                val context = LocalContext.current
+                val coroutineScope = rememberCoroutineScope()
+
+                Surface(
+                    onClick = {
+                        val credentialManager = CredentialManager.create(context)
+                        val webClientId = context.getString(R.string.default_web_client_id)
+                        
+                        val googleIdOption = GetGoogleIdOption.Builder()
+                            .setFilterByAuthorizedAccounts(false)
+                            .setServerClientId(webClientId)
+                            .setAutoSelectEnabled(true)
+                            .build()
+  
+                        val request = GetCredentialRequest.Builder()
+                            .addCredentialOption(googleIdOption)
+                            .build()
+  
+                        coroutineScope.launch {
+                            try {
+                                val result = credentialManager.getCredential(request = request, context = context)
+                                val credential = result.credential
+                                if (credential is androidx.credentials.CustomCredential &&
+                                    credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                                    val authCredential = GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
+                                    viewModel.loginWithGoogle(authCredential)
+                                }
+                            } catch (e: GetCredentialException) { /* Handled */ }
+                        }
+                    },
+                    enabled = authState !is AuthState.Loading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 2.dp
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_compass), // Representative
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = Color.Unspecified
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Sign up with Google", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Row {
                     Text("Already have an account? ", color = MaterialTheme.colorScheme.onSurfaceVariant)

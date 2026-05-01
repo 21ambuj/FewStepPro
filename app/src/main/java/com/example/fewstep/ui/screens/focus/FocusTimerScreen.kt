@@ -9,6 +9,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -16,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -89,8 +91,8 @@ fun FocusTimerScreen(
     // --- User Configs ---
     var focusMinutes by remember { mutableStateOf("25") }
     var breakMinutes by remember { mutableStateOf("5") }
-    var selectedHabitId by remember { mutableStateOf<String?>(null) }
     var isSettingsExpanded by remember { mutableStateOf(false) }
+    var showHistoryDialog by remember { mutableStateOf(false) }
 
     // --- Derived ---
     val progress = if (totalSeconds > 0) secondsLeft.toFloat() / totalSeconds.toFloat() else 0f
@@ -139,47 +141,38 @@ fun FocusTimerScreen(
     }
 
     // Theme-aware background
-    val bgBrush = if (isDark) {
-        Brush.verticalGradient(listOf(Color(0xFF0A1128), Color(0xFF0D1B4B), Color(0xFF131A3B)))
-    } else {
-        Brush.verticalGradient(listOf(
-            MaterialTheme.colorScheme.surface,
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            MaterialTheme.colorScheme.background
-        ))
-    }
+    val bgBrush = MaterialTheme.colorScheme.background
+
+
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Transparent)
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        "FOCUS MODE",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        letterSpacing = 3.sp
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Spacer(Modifier.width(32.dp))
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "Focus Mode", 
+                    fontWeight = FontWeight.Black, 
+                    fontSize = 20.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = { showHistoryDialog = true }) {
+                    Icon(Icons.Default.History, contentDescription = "History", tint = MaterialTheme.colorScheme.onBackground)
                 }
             }
-        },
-        containerColor = Color.Transparent
+        }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().background(bgBrush)) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -241,7 +234,7 @@ fun FocusTimerScreen(
                     }
                 }
 
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(56.dp))
 
                 // === TIMER RING ===
                 Box(
@@ -342,8 +335,8 @@ fun FocusTimerScreen(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(24.dp))
 
-                Spacer(Modifier.height(36.dp))
 
                 // === CONTROL BUTTONS ===
                 Row(
@@ -390,55 +383,7 @@ fun FocusTimerScreen(
                     )
                 }
 
-                Spacer(Modifier.height(48.dp))
-
-                // === HABIT SELECTOR ===
-                if (habits.isNotEmpty()) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.fillMaxWidth(),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.TrackChanges, null, tint = ringColor, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Focus On a Habit", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp)
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            habits.forEach { habit ->
-                                val isDone = habit.id in completedIds
-                                val isSelected = habit.id == selectedHabitId
-                                Surface(
-                                    onClick = { if (!isDone) selectedHabitId = if (isSelected) null else habit.id },
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = when {
-                                        isDone -> Color(0xFF2E7D32).copy(alpha = 0.15f)
-                                        isSelected -> ringColor.copy(alpha = 0.2f)
-                                        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-                                    },
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
-                                ) {
-                                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.Default.CheckCircle, null,
-                                            tint = if (isDone) Color(0xFF2E7D32) else if (isSelected) ringColor else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(Modifier.width(10.dp))
-                                        Text(habit.title, color = if (isDone) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
-                                        if (isDone) {
-                                            Spacer(Modifier.weight(1f))
-                                            Text("✓ Done", color = Color(0xFF2E7D32), fontSize = 11.sp)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(64.dp))
             }
 
             // === OVERLAY MODAL ===
@@ -470,6 +415,13 @@ fun FocusTimerScreen(
                         )
                     }
                 }
+            }
+
+            if (showHistoryDialog) {
+                FocusHistoryDialog(
+                    viewModel = viewModel,
+                    onDismiss = { showHistoryDialog = false }
+                )
             }
         }
     }

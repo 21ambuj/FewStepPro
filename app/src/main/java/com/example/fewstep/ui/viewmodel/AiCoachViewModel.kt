@@ -71,60 +71,107 @@ class AiCoachViewModel : ViewModel() {
     }
 
     private fun fetchAiResponse(userPrompt: String, user: User?, habits: List<Habit>): String {
-        val habitContext = habits.joinToString(", ") { it.title }
+        // Limit names and habits to avoid URL overflow
+        val shortName = user?.name?.split(" ")?.firstOrNull() ?: "Champion"
+        val habitContext = habits.take(5).joinToString(", ") { it.title }
+        
         val prompt = """
-            FewStep Coach. 
-            User: ${user?.name ?: "Champion"}, Level: ${user?.level ?: 1}, Streak: ${user?.currentStreak ?: 0}. 
-            Habits: $habitContext. 
-            
-            Strict Guidelines:
-            1. Answer only in short points using simple dashes (-).
-            2. NO special characters like *, #, or bold markdown.
-            3. Use 1-2 emojis per point based on context.
-            4. Keep responses very short and professional.
-            5. DO NOT ask any follow-up questions or unnecessary questions. Direct answers only.
-            
-            User says: $userPrompt
+            Instruction: You are 'FewStep Coach'. A deeply empathetic, purely emotional, and highly motivational life coach. 
+            User: $shortName. Rank: ${user?.rankTitle ?: "Novice"}.
+            Habits: $habitContext.
+            Goal: Reply to '$userPrompt' with intense positive energy and encouragement.
+            Rule: 1-2 short sentences. Use simple, daily-life conversational HINDI script (Devanagari) or PURE English. Avoid overly formal words. DO NOT write Hindi words using English letters. Include 1-2 emojis. max 45 words.
         """.trimIndent()
 
-        val encodedPrompt = java.net.URLEncoder.encode(prompt, "UTF-8")
-        val url = "https://text.pollinations.ai/$encodedPrompt"
+        // Clean prompt for path: replace special chars and encode
+        val cleanPrompt = prompt.replace("\n", " ").replace("\r", " ").trim()
+        val encodedPrompt = java.net.URLEncoder.encode(cleanPrompt, "UTF-8").replace("+", "%20")
         
-        var retryCount = 0
-        val maxRetries = 2
+        // Priority endpoints
+        // 1. Pollinations (Must use path for direct text, query returns HTML docs)
+        // 2. Puter (JSON POST for maximum stability)
+        val endpoints = listOf(
+            "https://text.pollinations.ai/$encodedPrompt",
+            "https://api.puter.com/puterai/openai/v1/chat/completions"
+        )
         
-        while (retryCount <= maxRetries) {
-            var shouldRetry = false
-            var lastErrorCode = 0
+        for (url in endpoints) {
+            var retryCount = 0
+            val maxRetries = 1
             
-            try {
-                val request = Request.Builder().url(url).get().build()
-                client.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        return response.body?.string() ?: "I couldn't hear you clearly... 🎤"
-                    }
+            while (retryCount <= maxRetries) {
+                var shouldRetry = false
+                var lastErrorCode = 0
+                
+                try {
+                    val requestBuilder = Request.Builder()
+                        .url(url)
                     
-                    lastErrorCode = response.code
-                    if (lastErrorCode == 429) return "You're too fast! Let's slow down and focus on your habits for a moment. 🧘‍♂️☕"
-                    if (lastErrorCode in listOf(502, 503, 504)) {
-                        shouldRetry = true
+                    if (url.contains("puter.com")) {
+                        // Puter needs a POST with JSON and a token
+                        val json = JSONObject().apply {
+                            put("model", "gpt-4o-mini")
+                            put("messages", JSONArray().apply {
+                                put(JSONObject().apply {
+                                    put("role", "user")
+                                    put("content", cleanPrompt)
+                                })
+                            })
+                        }
+                        requestBuilder.post(json.toString().toRequestBody(mediaType))
+                    } else {
+                        // Pollinations: MUST be GET and PATH-based for plain text
+                        requestBuilder.get().addHeader("Accept", "text/plain")
+                    }
+
+                    val request = requestBuilder.build()
+                    var moveToFallback = false
+                    client.newCall(request).execute().use { response ->
+                        if (response.isSuccessful) {
+                            val bodyText = response.body?.string()?.trim()
+                            if (!bodyText.isNullOrEmpty()) {
+                                // Don't return if it's HTML (Pollinations sometimes returns error pages as 200)
+                                if (bodyText.contains("<!DOCTYPE html>") || bodyText.startsWith("<html")) {
+                                     // This is an error page, try fallback
+                                     lastErrorCode = 404 // Treat as not found
+                                     moveToFallback = true
+                                } else {
+                                    return if (bodyText.startsWith("{")) {
+                                        val jsonResp = JSONObject(bodyText)
+                                        jsonResp.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
+                                    } else {
+                                        bodyText
+                                    }
+                                }
+                            }
+                        }
+                        
+                        lastErrorCode = response.code
+                        if (lastErrorCode == 429) {
+                             if (url == endpoints.last()) return "Bahut jaldi mein ho? Thoda ruko, habits pe focus karo! 🧘‍♂️☕"
+                             else moveToFallback = true 
+                        }
+                        if (lastErrorCode in listOf(301, 302, 404, 502, 503, 504)) {
+                            shouldRetry = true
+                        }
+                    }
+                    if (moveToFallback) break
+                } catch (e: Exception) {
+                    android.util.Log.e("AiCoach", "Network Error on $url: ${e.message}")
+                    shouldRetry = true
+                }
+
+                if (shouldRetry) {
+                    retryCount++
+                    if (retryCount <= maxRetries) {
+                        Thread.sleep(500L * retryCount)
+                        continue
                     }
                 }
-            } catch (e: Exception) {
-                shouldRetry = true
+                break // No more retries for this url
             }
-
-            if (shouldRetry) {
-                retryCount++
-                if (retryCount <= maxRetries) {
-                    Thread.sleep(1000L * retryCount)
-                    continue
-                }
-            }
-            
-            if (lastErrorCode != 0) return "Error ($lastErrorCode). I'm resetting, please try again! ☕"
-            return "Connection trouble! 🌐"
         }
-        return "I'm having trouble connecting. Let's try again in a bit! 🛠️"
+        
+        return "Coach thoda recharge ho raha hai! Habits pe focus karo, main wapas aata hoon! 🛠️☕"
     }
 }

@@ -1,13 +1,12 @@
 package com.example.fewstep.ui.screens.home
 
 import android.content.Context
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -29,15 +28,17 @@ import androidx.compose.ui.unit.sp
 import com.example.fewstep.R
 import com.example.fewstep.data.model.User
 import com.example.fewstep.ui.viewmodel.HomeViewModel
+import com.example.fewstep.ui.viewmodel.NotificationsViewModel
+import androidx.compose.foundation.border
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
-import java.util.Calendar
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import java.util.Locale
+import com.example.fewstep.ui.components.AdMobBanner
+import com.example.fewstep.ui.components.StreakAchievementOverlay
 import java.text.SimpleDateFormat
 import java.util.Date
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import com.example.fewstep.ui.components.AdMobBanner
+import java.util.Locale
+import java.util.Calendar
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 
 enum class DayState { PAST, TODAY, FUTURE }
 
@@ -52,19 +53,31 @@ fun HomeScreen(
     onFocusClick: () -> Unit,
     onAnalyticsClick: () -> Unit,
     onEditClick: (com.example.fewstep.data.model.Habit) -> Unit,
-    onAiCoachClick: () -> Unit
-
+    onAiCoachClick: () -> Unit,
+    onNotificationsClick: () -> Unit,
+    onStreakClick: () -> Unit = {},
+    onLevelClick: () -> Unit = {},
+    onStoreClick: () -> Unit = {}
 ) {
     val user by viewModel.userData.collectAsState()
+    val notificationViewModel: NotificationsViewModel = viewModel()
+    val unreadNotifications by notificationViewModel.unreadCount.collectAsState()
     val habits by viewModel.habits.collectAsState()
     val historyRecap by viewModel.historyRecap.collectAsState()
     val habitStats by viewModel.habitStats.collectAsState()
+    val sortedHabits by viewModel.sortedHabits.collectAsState()
+    val selectedDayStartMs by viewModel.selectedDayStartMs.collectAsState()
+    val selectedDayEndMs by viewModel.selectedDayEndMs.collectAsState()
+    val dayState by viewModel.selectedDayState.collectAsState()
+    
     val selectedDay by viewModel.selectedDayOfWeek.collectAsState()
     val completedIdsForDay by viewModel.completedHabitIdsForSelectedDay.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var processingIds by remember { mutableStateOf(setOf<String>()) }
+    
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
     var showCelebrate by remember { mutableStateOf(false) }
     var celebratoryStreak by remember { mutableStateOf(0) }
@@ -72,30 +85,27 @@ fun HomeScreen(
 
     val newMilestone by viewModel.newMilestone.collectAsState()
 
-    // Persistent celebration flag
-    val prefs = remember { context.getSharedPreferences("FewStepPrefs", Context.MODE_PRIVATE) }
-    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
-
-    // Reorder: Pending first, Completed last. Both sub-sections sorted by time.
-    val sortedHabits = habits.sortedWith(
-        compareBy<com.example.fewstep.data.model.Habit> { it.id in completedIdsForDay }
-            .thenBy { it.reminderTime }
-    )
+    // Persistent celebration flag - renamed to avoid any hidden conflicts
+    val homePrefs = remember { context.getSharedPreferences("FewStepPrefs", Context.MODE_PRIVATE) }
+    val todayDateStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
 
     // Clear processing IDs once they are confirmed by the server
     LaunchedEffect(completedIdsForDay) {
         processingIds = processingIds.filter { it !in completedIdsForDay }.toSet()
     }
     
-    // Trigger celebration once per day when the streak is updated
-    LaunchedEffect(user?.lastStreakUpdate, user?.currentStreak) {
-        val lastUpdate = user?.lastStreakUpdate ?: ""
-        val currentStreak = user?.currentStreak ?: 0
-        val lastCelebrated = prefs.getString("lastCelebratedDate", "")
+    // Unified trigger for both Vibration and Visual Pop-up once per day!
+    // This now strictly listens to the deterministic database transaction event stream
+    LaunchedEffect(Unit) {
+        viewModel.streakIncreasedEvent.collect { newStreak ->
+            // FIRE 2x VIBRATION
+            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+            kotlinx.coroutines.delay(150)
+            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
 
-        if (lastUpdate == today && lastCelebrated != today && currentStreak > 0) {
-            celebratoryStreak = currentStreak
-            isMilestone = listOf(7, 15, 30, 50, 100).contains(currentStreak)
+            // SHOW VISUAL POPUP
+            celebratoryStreak = newStreak
+            isMilestone = listOf(7, 15, 30, 50, 100).contains(newStreak)
             showCelebrate = true
         }
     }
@@ -103,8 +113,14 @@ fun HomeScreen(
     // Explicit Milestone trigger from ViewModel
     LaunchedEffect(newMilestone) {
         newMilestone?.let { milestone ->
-            val lastCelebratedMilestone = prefs.getInt("lastMilestone_$milestone", 0)
-            if (lastCelebratedMilestone != Calendar.getInstance().get(Calendar.DAY_OF_YEAR)) {
+            val lastCelebratedMilestone = homePrefs.getInt("lastMilestone_$milestone", 0)
+            if (lastCelebratedMilestone != java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR)) {
+                
+                // FIRE 2x VIBRATION for milestone too!
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                kotlinx.coroutines.delay(150)
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+
                 celebratoryStreak = milestone
                 isMilestone = true
                 showCelebrate = true
@@ -120,127 +136,340 @@ fun HomeScreen(
     val selectedIndex: Int = dayMapping.indexOf(selectedDay)
     
 
-        Scaffold(
-            topBar = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.background)
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+    val isComebackMode by viewModel.isComebackMode.collectAsState()
 
-                        Text(
-                            text = "Hello, ${user?.name ?: userName}!",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // All cards same weight for uniform size
-                        HeaderBadgeCard(
-                            modifier = Modifier.weight(1f),
-                            label = "Streak",
-                            value = "${user?.currentStreak ?: 0}d",
-                            icon = Icons.Default.Whatshot,
-                            iconColor = Color(0xFFFF5722),
-                            bgColor = Color(0xFFFFE0B2)
-                        )
-                        HeaderBadgeCard(
-                            modifier = Modifier.weight(1f),
-                            label = "Level",
-                            value = "${user?.level ?: 1}",
-                            icon = Icons.Default.Star,
-                            iconColor = Color(0xFFFFA000),
-                            bgColor = Color(0xFFFFF9C4)
-                        )
-                        HeaderBadgeCard(
-                            modifier = Modifier.weight(1f),
-                            label = "Cals",
-                            value = "Log",
-                            icon = Icons.Default.DateRange,
-                            iconColor = Color(0xFF1E88E5),
-                            bgColor = Color(0xFFE3F2FD),
-                            onClick = onProgressClick
-                        )
-                    }
-                }
-            },
-            floatingActionButton = {
-                Column(horizontalAlignment = Alignment.End) {
-                    FloatingActionButton(
-                        onClick = onAiCoachClick,
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        shape = CircleShape,
-                        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
-                        modifier = Modifier.padding(bottom = 12.dp).size(48.dp)
-                    ) {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = "AI Coach", modifier = Modifier.size(24.dp))
-                    }
-                    
-                    FloatingActionButton(
-                        onClick = onAddHabitClick,
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        shape = CircleShape,
-                        elevation = FloatingActionButtonDefaults.elevation(8.dp),
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Habit", modifier = Modifier.size(28.dp))
-                    }
-                }
-            },
-            snackbarHost = { SnackbarHost(snackbarHostState) }
-        ) { padding ->
-            LazyColumn(
+    // Share Intent Helper
+    fun shareApp(context: Context) {
+        val shareText = """
+            Hey! 🚀 I'm using FewStep to master my habits and stay focused. 
+            It has an AI Coach, step tracking, focus timers, and a rank system! 
+            
+            Join me and start your journey here: 
+            https://21ambuj.github.io/FewStep-/
+        """.trimIndent()
+        
+        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+        }
+        context.startActivity(android.content.Intent.createChooser(intent, "Share FewStep via"))
+    }
+
+
+    Scaffold(
+        topBar = {
+            Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
+                    .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
-                    .padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
-                item {
-                    user?.let {
-                        XpProgressBar(it.xp, it.level)
+                // Row 1: FEWSTEP branding (left) | Cals · Store · Notifications (right)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // FEWSTEP Branding
+                    Text(
+                        text = "FewStep",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 1.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    // Right side: Cals badge + Store + Notifications
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Calendar icon button
+                        IconButton(onClick = onProgressClick) {
+                            Icon(
+                                Icons.Default.CalendarMonth,
+                                contentDescription = "Calendar",
+                                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            Row {
+                                IconButton(onClick = onStoreClick) {
+                                    Icon(
+                                        Icons.Default.Storefront,
+                                        contentDescription = "Store",
+                                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                IconButton(onClick = { shareApp(context) }) {
+                                    Icon(
+                                        Icons.Default.Share,
+                                        contentDescription = "Share",
+                                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                IconButton(onClick = onNotificationsClick) {
+                                    Icon(
+                                        Icons.Default.Notifications,
+                                        contentDescription = "Notifications",
+                                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                            if (unreadNotifications > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 8.dp, end = 8.dp)
+                                        .size(10.dp)
+                                        .background(Color.Red, CircleShape)
+                                        .border(2.dp, MaterialTheme.colorScheme.background, CircleShape)
+                                )
+                            }
+                        }
                     }
                 }
 
-                item {
-                    WeeklyRecapBar(historyRecap)
-                }
+                Spacer(modifier = Modifier.height(4.dp))
 
+                // Row 2: Greeting below branding
+                Text(
+                    text = "Hello, ${user?.name ?: userName}! 👋",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                )
                 
-                item {
-                    val statusText = if (selectedDay == java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)) "Today's Missions" else "${daysOfWeek[selectedIndex]}'s Missions"
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Row 3: Streak · Level · (Cals removed — now in top row)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    HeaderBadgeCard(
+                        modifier = Modifier.weight(1f),
+                        label = "Streak",
+                        value = "${user?.currentStreak ?: 0}d",
+                        icon = Icons.Default.Whatshot,
+                        iconColor = Color(0xFFFF5722),
+                        bgColor = Color(0xFFFFE0B2),
+                        onClick = onStreakClick
+                    )
+                    HeaderBadgeCard(
+                        modifier = Modifier.weight(1f),
+                        label = "Level",
+                        value = "${user?.level ?: 1}",
+                        icon = Icons.Default.Star,
+                        iconColor = Color(0xFFFFA000),
+                        bgColor = Color(0xFFFFF9C4),
+                        onClick = onLevelClick
+                    )
+                    HeaderBadgeCard(
+                        modifier = Modifier.weight(1f),
+                        label = "XP",
+                        value = "${user?.xp ?: 0}",
+                        icon = Icons.Default.EmojiEvents,
+                        iconColor = Color(0xFF43A047),
+                        bgColor = Color(0xFFE8F5E9),
+                        onClick = onLevelClick
+                    )
+                }
+            }
+        },
+        floatingActionButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                FloatingActionButton(
+                    onClick = onAiCoachClick,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    shape = CircleShape,
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+                    modifier = Modifier.padding(bottom = 12.dp).size(48.dp)
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = "AI Coach", modifier = Modifier.size(24.dp))
+                }
+                
+                FloatingActionButton(
+                    onClick = onAddHabitClick,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = CircleShape,
+                    elevation = FloatingActionButtonDefaults.elevation(8.dp),
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Habit", modifier = Modifier.size(28.dp))
+                }
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 80.dp)
+        ) {
+            // UNIFIED CAROUSEL (Information Header)
+            item(key = "info_carousel") {
+                Column {
+                    val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { 4 })
+                    
+                    // Auto-scroll logic
+                    LaunchedEffect(pagerState) {
+                        while (true) {
+                            kotlinx.coroutines.delay(5000)
+                            val next = (pagerState.currentPage + 1) % 4
+                            pagerState.animateScrollToPage(next)
+                        }
+                    }
+
+                    androidx.compose.foundation.pager.HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxWidth(),
+                        pageSpacing = 16.dp,
+                        verticalAlignment = Alignment.Top
+                    ) { page ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().height(100.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            ) {
+                            Box(modifier = Modifier.padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {
+                                when (page) {
+                                    0 -> {
+                                        // PAGE 1: Weekly Overview
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            historyRecap.forEach { summary ->
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text(
+                                                        text = summary.dayName, 
+                                                        fontSize = 11.sp, 
+                                                        color = if (summary.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface, 
+                                                        fontWeight = if (summary.isToday) FontWeight.Black else FontWeight.Bold
+                                                    )
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(32.dp)
+                                                            .background(
+                                                                color = when { 
+                                                                        summary.completedCount > 0 && summary.completedCount >= summary.totalCount -> Color(0xFF10B981) 
+                                                                        summary.completedCount > 0 -> Color(0xFF10B981).copy(alpha = 0.8f) 
+                                                                        summary.isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) 
+                                                                        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f) 
+                                                                    }, 
+                                                                    shape = CircleShape
+                                                                ), 
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            if (summary.completedCount > 0) {
+                                                                Text("✔", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                            } else if (summary.isToday) {
+                                                                Box(modifier = Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    1 -> {
+                                        // PAGE 2: Share App
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().clickable { shareApp(context) },
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Groups, 
+                                                contentDescription = null, 
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer, 
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                            Column {
+                                                Text("Share the Love! 💖🚀", fontWeight = FontWeight.Black, fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                                Text("Help your friends grow with FewStep and build a tribe together.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
+                                            }
+                                        }
+                                    }
+                                    2 -> {
+                                        // PAGE 3: Official Feedback Form
+                                        val feedbackUrl = "https://forms.gle/kWcUkF8oGZE2nJQz9"
+                                        val ctx = LocalContext.current
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().clickable {
+                                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(feedbackUrl))
+                                                ctx.startActivity(intent)
+                                            },
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.EditNote, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(28.dp))
+                                            Spacer(Modifier.width(12.dp))
+                                            Column {
+                                                Text("Your Voice Matters! 🥺🙏", fontWeight = FontWeight.Black, fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                                Text("Help us grow by sharing your honest feedback and ideas.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f))
+                                            }
+                                        }
+                                    }
+                                    3 -> {
+                                        // PAGE 4: Download Update
+                                        val downloadUrl = "https://21ambuj.github.io/FewStep-/"
+                                        val ctx = LocalContext.current
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().clickable {
+                                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(downloadUrl))
+                                                ctx.startActivity(intent)
+                                            },
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Download, 
+                                                contentDescription = null, 
+                                                tint = MaterialTheme.colorScheme.onPrimaryContainer, 
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+                                            Column {
+                                                Text("Get the Magic! ✨📲", fontWeight = FontWeight.Black, fontSize = 14.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                                Text("Ensure you're using the latest version for the best experience.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Pager Indicators
+                    Row(Modifier.wrapContentHeight().fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.Center) {
+                        repeat(4) { iteration ->
+                            val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                            Box(modifier = Modifier.padding(2.dp).clip(CircleShape).background(color).size(6.dp))
+                        }
+                    }
+                }
+            }
+
+            // STATIC SECTION: Header and Day Selector
+            item(key = "day_selector") {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    val currentDayOfWeek = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
+                    val statusText = if (selectedDay == currentDayOfWeek) "Today's Missions" else "${daysOfWeek[selectedIndex]}'s Missions"
+
                     Text(
                         text = statusText,
-                        fontSize = 18.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(top = 8.dp)
                     )
-                }
-
-                item {
-                    val todayIndex = dayMapping.indexOf(java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK))
-                    val dayState = when {
-                        selectedIndex < todayIndex -> DayState.PAST
-                        selectedIndex > todayIndex -> DayState.FUTURE
-                        else -> DayState.TODAY
-                    }
 
                     WeeklyTabRow(
                         days = daysOfWeek,
@@ -248,238 +477,110 @@ fun HomeScreen(
                         onDaySelected = { viewModel.selectDay(dayMapping[it]) }
                     )
                 }
+            }
 
-                if (sortedHabits.isNotEmpty()) {
-                    itemsIndexed(sortedHabits, key = { _, habit -> habit.id }) { index, habit ->
-                        val isDone = habit.id in completedIdsForDay
-                        val isProcessing = habit.id in processingIds
-                        
-                        val todayIndex = dayMapping.indexOf(java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK))
-                        val dayState = when {
-                            selectedIndex < todayIndex -> DayState.PAST
-                            selectedIndex > todayIndex -> DayState.FUTURE
-                            else -> DayState.TODAY
-                        }
-
-                        // Calculate the start and end of the selected day
-                        val selectedDayStartMs = java.util.Calendar.getInstance().apply {
-                            val currentDayOfWeek = get(java.util.Calendar.DAY_OF_WEEK)
-                            val diff = dayMapping[selectedIndex] - currentDayOfWeek
-                            add(java.util.Calendar.DAY_OF_YEAR, diff)
-                            set(java.util.Calendar.HOUR_OF_DAY, 0)
-                            set(java.util.Calendar.MINUTE, 0)
-                            set(java.util.Calendar.SECOND, 0)
-                            set(java.util.Calendar.MILLISECOND, 0)
-                        }.timeInMillis
-                        val selectedDayEndMs = selectedDayStartMs + 24 * 60 * 60 * 1000L - 1
-
-                        // Visibility Logic based on duration
-                        val isStarted = habit.startDate == null || habit.startDate <= selectedDayEndMs
-                        val isFinished = habit.endDate != null && selectedDayStartMs > habit.endDate
-
-                        // Hide if not started yet or if past its end date (unless it's today and we want to show it as finished)
-                        if (!isStarted) return@itemsIndexed
-                        
-                        // Always show for today if it's finished, but hide for future days if finished
-                        if (isFinished && dayState == DayState.FUTURE) return@itemsIndexed
-
-                        HabitItem(
-                            habit = habit,
-                            isCompleted = isDone || isProcessing,
-                            statusFinished = isFinished,
-                            totalCompletions = habitStats[habit.id] ?: 0,
-                            dayState = dayState,
-                            onCompleteClick = { 
-                                if (dayState == DayState.TODAY && !isDone && !isProcessing) {
-                                    processingIds = processingIds + habit.id
-                                    viewModel.completeHabit(habit) 
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Mission Accomplished! +50 XP 🚀")
-                                    }
-                                }
-                            },
-                            onDeleteClick = { 
-                                viewModel.deleteHabit(context, habit) 
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Mission Terminated. 🗑️")
-                                }
-                            },
-                            onEditClick = { onEditClick(habit) }
-                        )
-                    }
-                } else {
-                    item {
-                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("No missions for this day!", fontSize = 16.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-                                Text("Consistency is key! ✨", fontSize = 12.sp, color = Color.Gray)
+            // COMEBACK MODE BANNER
+            if (isComebackMode && selectedDay == java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)) {
+                item(key = "comeback_banner") {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFF9800).copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF9800).copy(alpha = 0.5f))
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("🔥", fontSize = 24.sp)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text("COMEBACK MISSION UNLOCKED!", fontWeight = FontWeight.Black, fontSize = 12.sp, color = Color(0xFFE65100))
+                                Text("Complete any task today for 2x XP bonus!", fontSize = 10.sp, color = Color(0xFFE65100).copy(alpha = 0.8f))
                             }
                         }
                     }
                 }
-
-                item {
-                    AdMobBanner()
-                }
             }
-        }
 
-        if (showCelebrate) {
-            StreakAchievementOverlay(
-                streak = celebratoryStreak,
-                isMilestone = isMilestone,
-                onDismiss = { 
-                    showCelebrate = false 
-                    if (isMilestone) {
-                        prefs.edit().putInt("lastMilestone_$celebratoryStreak", Calendar.getInstance().get(Calendar.DAY_OF_YEAR)).apply()
-                        viewModel.dismissMilestone()
-                    } else {
-                        prefs.edit().putString("lastCelebratedDate", today).apply()
+            if (sortedHabits.isNotEmpty()) {
+                itemsIndexed(sortedHabits, key = { _, habit -> habit.id }) { index, habit ->
+                    val isDone = habit.id in completedIdsForDay
+                    val isProcessing = habit.id in processingIds
+                    val isStarted = habit.startDate == null || habit.startDate <= selectedDayEndMs
+                    val isFinished = habit.endDate != null && selectedDayStartMs > habit.endDate
+
+                    // Hide if not started yet or if past its end date
+                    if (!isStarted) return@itemsIndexed
+                    
+                    // Always show for today if it's finished, but hide for future days if finished
+                    if (isFinished && dayState == DayState.FUTURE) return@itemsIndexed
+
+                    HabitItem(
+                        habit = habit,
+                        isCompleted = isDone || isProcessing,
+                        statusFinished = isFinished,
+                        totalCompletions = habitStats[habit.id] ?: 0,
+                        dayState = dayState,
+                        onCompleteClick = { 
+                            if (dayState == DayState.TODAY && !isDone && !isProcessing) {
+                                processingIds = processingIds + habit.id
+                                viewModel.completeHabit(habit) 
+                                scope.launch {
+                                    val msg = if (isComebackMode) "COMEBACK COMPLETE! +100 XP 🔥" else "Mission Accomplished! +50 XP 🚀"
+                                    snackbarHostState.showSnackbar(msg)
+                                }
+                            }
+                        },
+                        onDeleteClick = { 
+                            viewModel.deleteHabit(context, habit) 
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Mission Terminated. 🗑️")
+                            }
+                        },
+                        onEditClick = { onEditClick(habit) }
+                    )
+                }
+            } else {
+                item(key = "empty_state") {
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("No missions for this day!", fontSize = 16.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                            Text("Consistency is key! ✨", fontSize = 12.sp, color = Color.Gray)
+                        }
                     }
                 }
-            )
+            }
+
+            item(key = "footer_ad") {
+                AdMobBanner()
+            }
         }
-    }
-
-
-
-@Composable
-fun StreakAchievementOverlay(streak: Int, isMilestone: Boolean = false, onDismiss: () -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition(label = "streak")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scale"
-    )
-
-    val rotate by infiniteTransition.animateFloat(
-        initialValue = -5f,
-        targetValue = 5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "rotate"
-    )
-
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = Color.Black.copy(alpha = 0.95f)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            if (isMilestone) {
-                Text(
-                    text = "🏆 MILESTONE UNLOCKED 🏆",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color(0xFFFFD600),
-                    letterSpacing = 2.sp
+        
+        if (showCelebrate) {
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { showCelebrate = false },
+                properties = androidx.compose.ui.window.DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = false
                 )
-                Spacer(modifier = Modifier.height(0.dp))
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(220.dp)
-                    .graphicsLayer(scaleX = scale, scaleY = scale, rotationZ = rotate),
-                contentAlignment = Alignment.Center
             ) {
-                // Multi-layered Glow
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                (if (isMilestone) Color(0xFFFFD600) else Color(0xFFFF5722)).copy(alpha = 0.4f),
-                                Color.Transparent
-                            )
-                        ),
-                        radius = size.minDimension / 1.2f
-                    )
-                }
-                
-                Icon(
-                    imageVector = if (isMilestone) Icons.Default.EmojiEvents else Icons.Default.Whatshot,
-                    contentDescription = null,
-                    modifier = Modifier.size(130.dp),
-                    tint = if (isMilestone) Color(0xFFFFD600) else Color(0xFFFF5722)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                text = if (isMilestone) "INCREDIBLE $streak DAYS!" else "$streak DAY STREAK!",
-                fontSize = if (isMilestone) 36.sp else 32.sp,
-                fontWeight = FontWeight.Black,
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                lineHeight = 44.sp
-            )
-
-            val subtitle = when {
-                streak >= 100 -> "Legendary Status! You are a master of habit. 👑"
-                streak >= 30 -> "Absolute Beast Mode! 30 days of pure fire. 🔥⚡"
-                streak >= 7 -> "One week down! The habit is taking root. 🌱"
-                else -> "You're on fire! Keep the momentum going! 🚀"
-            }
-
-            Text(
-                text = subtitle,
-                fontSize = 18.sp,
-                color = Color.White.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 12.dp)
-            )
-
-            if (isMilestone) {
-                Spacer(modifier = Modifier.height(24.dp))
-                Surface(
-                    color = Color(0xFFFFD600).copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFD600))
-                ) {
-                    Text(
-                        "+${streak * 10} BONUS XP RECEIVED 🌟",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        color = Color(0xFFFFD600),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(60.dp))
-
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isMilestone) Color(0xFFFFD600) else Color(0xFFFF5722)
-                ),
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier
-                    .height(60.dp)
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
-            ) {
-                Text(
-                    text = if (isMilestone) "CLAIM REWARD 🏆" else "KEEP CLIMBING 🚀",
-                    fontWeight = FontWeight.Black,
-                    fontSize = 18.sp,
-                    color = if (isMilestone) Color.Black else Color.White
+                StreakAchievementOverlay(
+                    streak = celebratoryStreak,
+                    isMilestone = isMilestone,
+                    onDismiss = { 
+                        showCelebrate = false 
+                        // Save to prefs to prevent duplicate popups on same day if needed
+                        if (isMilestone) {
+                            homePrefs.edit().putInt("lastMilestone_$celebratoryStreak", java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR)).apply()
+                            viewModel.dismissMilestone()
+                        } else {
+                            homePrefs.edit().putString("lastCelebratedDate", todayDateStr).apply()
+                        }
+                    }
                 )
             }
         }
     }
 }
+
 
 @Composable
 fun LevelBadge(level: Int) {
@@ -653,17 +754,15 @@ fun HabitItem(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                alpha = if (isCompleted) 0.9f else 1f
+                alpha = if (isCompleted) 0.8f else 1f
+                scaleX = if (isCompleted) 0.98f else 1f
+                scaleY = if (isCompleted) 0.98f else 1f
             },
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
             modifier = Modifier
@@ -694,15 +793,15 @@ fun HabitItem(
                         color = if (isCompleted) 
                             MaterialTheme.colorScheme.surfaceVariant 
                         else 
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                        shape = RoundedCornerShape(8.dp)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(10.dp),
                     ) {
                         Text(
                             text = habit.category,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.primary
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
@@ -823,14 +922,13 @@ fun WeeklyTabRow(days: List<String>, selectedIndex: Int, onDaySelected: (Int) ->
     ScrollableTabRow(
         selectedTabIndex = selectedIndex,
         containerColor = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.primary,
         edgePadding = 0.dp,
         divider = {},
         indicator = { tabPositions ->
             TabRowDefaults.SecondaryIndicator(
                 Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
-                color = MaterialTheme.colorScheme.primary,
-                height = 3.dp
+                height = 3.dp,
+                color = MaterialTheme.colorScheme.primary
             )
         }
     ) {
@@ -841,8 +939,9 @@ fun WeeklyTabRow(days: List<String>, selectedIndex: Int, onDaySelected: (Int) ->
                 text = {
                     Text(
                         text = day,
-                        fontSize = 13.sp,
-                        fontWeight = if (selectedIndex == index) FontWeight.Bold else FontWeight.Medium
+                        fontSize = 12.sp,
+                        fontWeight = if (selectedIndex == index) FontWeight.Black else FontWeight.Bold,
+                        color = if (selectedIndex == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 }
             )
@@ -862,17 +961,17 @@ fun HeaderBadgeCard(
 ) {
     Card(
         modifier = modifier
-            .height(56.dp)
+            .height(60.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable(enabled = onClick != null) { onClick?.invoke() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(

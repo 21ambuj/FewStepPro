@@ -49,6 +49,9 @@ class FocusTimerService : Service(), TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var pendingSpeech: String? = null
     private var isTtsReady = false
+    
+    private val focusRepository = com.example.fewstep.data.repository.FocusHistoryRepository()
+    private val habitRepository = com.example.fewstep.data.repository.HabitRepository()
 
     // Public state flows that the UI can observe
     private val _secondsLeft = MutableStateFlow(25 * 60)
@@ -104,7 +107,7 @@ class FocusTimerService : Service(), TextToSpeech.OnInitListener {
     fun resumeTimer() {
         if (_isRunning.value) return
         _isRunning.value = true
-        speak(if (_isFocusPhase.value) "Focus session started. Stay sharp!" else "Break time! Relax and recharge.")
+        speak(if (_isFocusPhase.value) "Focus session started... Let's stay sharp! 💪" else "Break time! ☕ Relax and recharge... You earned it!")
         timerJob = scope.launch {
             while (_isRunning.value && _secondsLeft.value > 0) {
                 delay(1000L)
@@ -115,12 +118,41 @@ class FocusTimerService : Service(), TextToSpeech.OnInitListener {
                 _isRunning.value = false
                 if (_isFocusPhase.value) {
                     _sessionsCompleted.value++
-                    speak("Focus session complete! Great work. Starting break.")
+                    saveSession()
+                    awardXp()
+                    speak("Focus session complete! 🔥 Great work. Starting break now.")
                     switchToBreak()
                 } else {
-                    speak("Break over! Ready for the next session?")
+                    speak("Break's over! Ready for the next session? Let's go! 🚀")
                     switchToFocus()
                 }
+            }
+        }
+    }
+
+
+
+    private fun saveSession() {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val session = com.example.fewstep.data.model.FocusSession(
+                    durationSeconds = focusDuration,
+                    tag = "Focus Session"
+                )
+                focusRepository.saveSession(session)
+            } catch (e: Exception) {
+                Log.e("FocusTimerService", "Error saving session: ${e.message}")
+            }
+        }
+    }
+
+    private fun awardXp() {
+        scope.launch(Dispatchers.IO) {
+            try {
+                // Award 20 XP for a focus session
+                habitRepository.addExperiencePoints(20L)
+            } catch (e: Exception) {
+                Log.e("FocusTimerService", "Error awarding XP: ${e.message}")
             }
         }
     }
@@ -128,14 +160,14 @@ class FocusTimerService : Service(), TextToSpeech.OnInitListener {
     fun pauseTimer() {
         _isRunning.value = false
         timerJob?.cancel()
-        speak("Timer paused.")
+        speak("Timer paused... Take a breath.")
         updateNotification()
     }
 
     fun stopTimer() {
         _isRunning.value = false
         timerJob?.cancel()
-        speak("Timer stopped.")
+        speak("Timer stopped... Session ended.")
     }
 
     fun resetTimer() {
@@ -144,7 +176,7 @@ class FocusTimerService : Service(), TextToSpeech.OnInitListener {
         _isFocusPhase.value = true
         _totalSeconds.value = focusDuration
         _secondsLeft.value = focusDuration
-        speak("Timer reset.")
+        speak("Timer reset... Starting fresh!")
         updateNotification()
     }
 
@@ -162,17 +194,26 @@ class FocusTimerService : Service(), TextToSpeech.OnInitListener {
         updateNotification()
     }
 
+    private fun stripEmojis(text: String): String {
+        val emojiRegex = "[\\uD83C-\\uDBFF\\uDC00-\\uDFFF\\u2600-\\u26FF\\u2700-\\u27BF\\u2300-\\u23FF\\u2B50\\u2B06\\u2194\\u21AA]".toRegex()
+        return text.replace(emojiRegex, "").replace("\\s+".toRegex(), " ").trim()
+    }
+
     private fun speak(text: String) {
         if (tts == null || !isTtsReady) {
             pendingSpeech = text
             return
         }
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "focus_tts_${System.currentTimeMillis()}")
+        val cleanText = stripEmojis(text)
+        Log.d("FocusTimer", "Original: $text | Speaking: $cleanText")
+        tts?.speak(cleanText, TextToSpeech.QUEUE_FLUSH, null, "focus_tts_${System.currentTimeMillis()}")
     }
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts?.setLanguage(Locale.US)
+            tts?.setPitch(0.95f)
+            tts?.setSpeechRate(0.9f)
             isTtsReady = true
             pendingSpeech?.let {
                 speak(it)

@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.fewstep.R
 
+
 @Composable
 fun AboutUsScreen(onBackClick: () -> Unit) {
     Scaffold(
@@ -78,9 +79,10 @@ fun AboutUsScreen(onBackClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Version 1.0.0",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Version 4.2.1",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(bottom = 24.dp)
                 )
             }
 
@@ -155,3 +157,4 @@ fun AboutSection(icon: androidx.compose.ui.graphics.vector.ImageVector, title: S
         }
     }
 }
+

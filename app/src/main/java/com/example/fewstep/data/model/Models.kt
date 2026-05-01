@@ -36,22 +36,57 @@ data class User(
     val uid: String = "",
     val name: String = "",
     val email: String = "",
-    val currentStreak: Int = 0,
-    val lastStreakUpdate: String = "", // yyyy-MM-dd
-    val xp: Long = 0,
-    val level: Int = 1,
-    val isAdmin: Boolean = false,
-    val isBlocked: Boolean = false,
-    val lastSeenBroadcastId: String = ""
+    @get:com.google.firebase.firestore.PropertyName("currentStreak")
+    @set:com.google.firebase.firestore.PropertyName("currentStreak")
+    var currentStreak: Int = 0,
+    
+    @get:com.google.firebase.firestore.PropertyName("lastStreakUpdate")
+    @set:com.google.firebase.firestore.PropertyName("lastStreakUpdate")
+    var lastStreakUpdate: String = "", // yyyy-MM-dd
+    
+    @get:com.google.firebase.firestore.PropertyName("xp")
+    @set:com.google.firebase.firestore.PropertyName("xp")
+    var xp: Long = 0,
+    
+    @get:com.google.firebase.firestore.PropertyName("level")
+    @set:com.google.firebase.firestore.PropertyName("level")
+    var level: Int = 1,
+    
+    @get:com.google.firebase.firestore.PropertyName("isAdmin")
+    @set:com.google.firebase.firestore.PropertyName("isAdmin")
+    var isAdmin: Boolean = false,
+    
+    @get:com.google.firebase.firestore.PropertyName("isBlocked")
+    @set:com.google.firebase.firestore.PropertyName("isBlocked")
+    var isBlocked: Boolean = false,
+    
+    @get:com.google.firebase.firestore.PropertyName("isDeleted")
+    @set:com.google.firebase.firestore.PropertyName("isDeleted")
+    var isDeleted: Boolean = false,
+    
+    @get:com.google.firebase.firestore.PropertyName("lastSeenBroadcastId")
+    @set:com.google.firebase.firestore.PropertyName("lastSeenBroadcastId")
+    var lastSeenBroadcastId: String = "",
+    
+    @get:com.google.firebase.firestore.PropertyName("availableFreezes")
+    @set:com.google.firebase.firestore.PropertyName("availableFreezes")
+    var availableFreezes: Int = 0
 ) {
     val rankTitle: String get() = when {
-        level >= 101 -> "UNSTOPPABLE FORCE"
-        level >= 51 -> "LEGENDARY CHAMPION"
-        level >= 21 -> "MASTER COACH"
-        level >= 11 -> "ELITE WARRIOR"
-        level >= 6 -> "WARRIOR"
-        level >= 3 -> "APPRENTICE"
-        else -> "NOVICE"
+        level >= 101 -> "🔥 PAPA 🔥"
+        level >= 100 -> "GODLIKE CHAMPION"
+        level >= 91 -> "Mythic Warrior"
+        level >= 81 -> "Elite Master"
+        level >= 71 -> "Grandmaster"
+        level >= 61 -> "Master"
+        level >= 51 -> "Mythic"
+        level >= 41 -> "Legend"
+        level >= 31 -> "Expert"
+        level >= 21 -> "Ultra Pro"
+        level >= 11 -> "Pro"
+        level >= 6 -> "Trainee"
+        level >= 2 -> "Novice"
+        else -> "Beginner"
     }
 
     companion object {
@@ -72,7 +107,20 @@ data class UserQuery(
     val userName: String = "",
     val userEmail: String = "",
     val query: String = "",
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    
+    @get:com.google.firebase.firestore.PropertyName("resolved")
+    @set:com.google.firebase.firestore.PropertyName("resolved")
+    var isResolved: Boolean = false
+)
+
+data class AdminNotification(
+    val id: String = "",
+    val receiverId: String = "",
+    val title: String = "",
+    val message: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val isRead: Boolean = false
 )
 
 data class AdminBroadcast(
@@ -81,4 +129,13 @@ data class AdminBroadcast(
     val timestamp: Long = 0,
     val type: String = "ADMIN_GLOBAL",
     val active: Boolean = true
+)
+
+data class DeletionRequest(
+    val id: String = "",
+    val userId: String = "",
+    val userName: String = "",
+    val userEmail: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val isProcessed: Boolean = false
 )
