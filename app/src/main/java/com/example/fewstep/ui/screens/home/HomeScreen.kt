@@ -32,7 +32,7 @@ import com.example.fewstep.ui.viewmodel.NotificationsViewModel
 import androidx.compose.foundation.border
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
-import com.example.fewstep.ui.components.AdMobBanner
+import com.example.fewstep.ui.components.StartIoBanner
 import com.example.fewstep.ui.components.StreakAchievementOverlay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -137,6 +137,11 @@ fun HomeScreen(
     
 
     val isComebackMode by viewModel.isComebackMode.collectAsState()
+
+    var showMagicWandDialog by remember { mutableStateOf(false) }
+    var magicGoalText by remember { mutableStateOf("") }
+    var magicPreferenceText by remember { mutableStateOf("") }
+    var isGenerating by remember { mutableStateOf(false) }
 
     // Share Intent Helper
     fun shareApp(context: Context) {
@@ -291,16 +296,15 @@ fun HomeScreen(
                     Icon(Icons.Default.AutoAwesome, contentDescription = "AI Coach", modifier = Modifier.size(24.dp))
                 }
                 
+            if (dayState != DayState.FUTURE) {
                 FloatingActionButton(
                     onClick = onAddHabitClick,
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = CircleShape,
-                    elevation = FloatingActionButtonDefaults.elevation(8.dp),
                     modifier = Modifier.padding(bottom = 16.dp)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Habit", modifier = Modifier.size(28.dp))
                 }
+            }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -463,13 +467,38 @@ fun HomeScreen(
                     val currentDayOfWeek = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)
                     val statusText = if (selectedDay == currentDayOfWeek) "Today's Missions" else "${daysOfWeek[selectedIndex]}'s Missions"
 
-                    Text(
-                        text = statusText,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = statusText,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        if (dayState != DayState.FUTURE && sortedHabits.isNotEmpty()) {
+                            androidx.compose.material3.ElevatedButton(
+                                onClick = { showMagicWandDialog = true },
+                                colors = androidx.compose.material3.ButtonDefaults.elevatedButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                modifier = Modifier.height(36.dp),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text("AI Generator", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
 
                     WeeklyTabRow(
                         days = daysOfWeek,
@@ -526,6 +555,8 @@ fun HomeScreen(
                                     val msg = if (isComebackMode) "COMEBACK COMPLETE! +100 XP 🔥" else "Mission Accomplished! +50 XP 🚀"
                                     snackbarHostState.showSnackbar(msg)
                                 }
+                                // Show Full Screen Interstitial Ad
+                                com.startapp.sdk.adsbase.StartAppAd.showAd(context)
                             }
                         },
                         onDeleteClick = { 
@@ -543,19 +574,52 @@ fun HomeScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("No missions for this day!", fontSize = 16.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
                             Text("Consistency is key! ✨", fontSize = 12.sp, color = Color.Gray)
+                            Spacer(Modifier.height(32.dp))
+                            
+                            if (dayState != DayState.FUTURE) {
+                                androidx.compose.material3.Button(
+                                    onClick = onAddHabitClick,
+                                    modifier = Modifier.fillMaxWidth(0.85f).height(54.dp),
+                                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Add Custom Habit", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                }
+                                
+                                Spacer(Modifier.height(16.dp))
+                                
+                                androidx.compose.material3.Button(
+                                    onClick = { showMagicWandDialog = true },
+                                    modifier = Modifier.fillMaxWidth(0.85f).height(54.dp),
+                                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    ),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Text("✨", fontSize = 20.sp)
+                                    Spacer(Modifier.width(12.dp))
+                                    Text("AI Habit Generator", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }
             }
 
             item(key = "footer_ad") {
-                AdMobBanner()
+                StartIoBanner()
             }
         }
         
         if (showCelebrate) {
             androidx.compose.ui.window.Dialog(
-                onDismissRequest = { showCelebrate = false },
+                onDismissRequest = { 
+                    showCelebrate = false 
+                    com.startapp.sdk.adsbase.StartAppAd.showAd(context)
+                },
                 properties = androidx.compose.ui.window.DialogProperties(
                     usePlatformDefaultWidth = false,
                     dismissOnBackPress = true,
@@ -574,9 +638,83 @@ fun HomeScreen(
                         } else {
                             homePrefs.edit().putString("lastCelebratedDate", todayDateStr).apply()
                         }
+                        com.startapp.sdk.adsbase.StartAppAd.showAd(context)
                     }
                 )
             }
+        }
+        
+        if (showMagicWandDialog) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { 
+                    if (!isGenerating) showMagicWandDialog = false 
+                },
+                title = { Text("✨ AI Habit Generator", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column {
+                        Text("What is your ultimate goal?", color = Color.Gray, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        androidx.compose.material3.OutlinedTextField(
+                            value = magicGoalText,
+                            onValueChange = { magicGoalText = it },
+                            placeholder = { Text("e.g. Run a 5K, Learn Spanish...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isGenerating
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Any specific time or preference?", color = Color.Gray, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        androidx.compose.material3.OutlinedTextField(
+                            value = magicPreferenceText,
+                            onValueChange = { magicPreferenceText = it },
+                            placeholder = { Text("e.g. Morning only, 7am daily...") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isGenerating
+                        )
+                        if (isGenerating) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text("Forging your path...", color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    androidx.compose.material3.Button(
+                        onClick = {
+                            if (magicGoalText.isNotBlank()) {
+                                isGenerating = true
+                                viewModel.generateHabitsFromAi(
+                                    goal = magicGoalText,
+                                    preferences = magicPreferenceText,
+                                    onSuccess = {
+                                        isGenerating = false
+                                        showMagicWandDialog = false
+                                        magicGoalText = ""
+                                        magicPreferenceText = ""
+                                        scope.launch { snackbarHostState.showSnackbar("✨ Magic habits added!") }
+                                        com.startapp.sdk.adsbase.StartAppAd.showAd(context)
+                                    },
+                                    onError = { error ->
+                                        isGenerating = false
+                                        scope.launch { snackbarHostState.showSnackbar(error) }
+                                    }
+                                )
+                            }
+                        },
+                        enabled = magicGoalText.isNotBlank() && !isGenerating
+                    ) {
+                        Text("Generate")
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(onClick = { showMagicWandDialog = false }, enabled = !isGenerating) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }

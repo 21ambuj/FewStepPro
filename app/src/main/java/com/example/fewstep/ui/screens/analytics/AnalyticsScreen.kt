@@ -1,11 +1,12 @@
 package com.example.fewstep.ui.screens.analytics
 
-import com.example.fewstep.ui.components.AdMobBanner
+import com.example.fewstep.ui.components.StartIoBanner
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -33,12 +34,73 @@ import androidx.compose.ui.unit.sp
 import com.example.fewstep.ui.viewmodel.HomeViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.material.icons.filled.Share
 
 
 private val categoryColors = listOf(
     Color(0xFF3D5AFE), Color(0xFFFF7043), Color(0xFF43A047),
     Color(0xFFFFD600), Color(0xFFE91E63), Color(0xFF00BCD4)
 )
+
+@Composable
+fun WeeklyRecapGraphic(userData: com.example.fewstep.data.model.User?, completions: Int, totalHabits: Int) {
+    val isDark = !MaterialTheme.colorScheme.surface.let { c ->
+        (0.299 * c.red + 0.587 * c.green + 0.114 * c.blue) > 0.5
+    }
+    val gradientColors = if (isDark)
+        listOf(Color(0xFF1A1040), Color(0xFF0D2B45), Color(0xFF1A1040))
+    else
+        listOf(Color(0xFF6C4FD8), Color(0xFF3D8EF0), Color(0xFF6C4FD8))
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        elevation = CardDefaults.cardElevation(if (isDark) 0.dp else 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Brush.linearGradient(gradientColors))
+                .padding(24.dp)
+        ) {
+            // Decorative blobs
+            Canvas(modifier = Modifier.matchParentSize()) {
+                drawCircle(Color.White.copy(alpha = 0.07f), radius = 220f, center = Offset(size.width, 0f))
+                drawCircle(Color.White.copy(alpha = 0.05f), radius = 160f, center = Offset(0f, size.height))
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "⚡ MY FEWSTEP WEEK ⚡",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 15.sp,
+                    color = Color.White.copy(alpha = 0.85f),
+                    letterSpacing = 2.sp
+                )
+                Spacer(Modifier.height(20.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    WeeklyStatItem(label = "Day Streak", value = userData?.currentStreak?.toString() ?: "0", emoji = "🔥", color = Color(0xFFFFD600))
+                    WeeklyStatItem(label = "Completions", value = completions.toString(), emoji = "✅", color = Color(0xFF69F0AE))
+                    WeeklyStatItem(label = "Level", value = userData?.level?.toString() ?: "1", emoji = "🏆", color = Color(0xFF40C4FF))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeeklyStatItem(label: String, value: String, emoji: String, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(emoji, fontSize = 22.sp)
+        Spacer(Modifier.height(4.dp))
+        Text(value, fontWeight = FontWeight.Black, fontSize = 30.sp, color = color)
+        Text(label, fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Medium)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,14 +182,63 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
             }
         } else {
             val data = analyticsData!!
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val coroutineScope = rememberCoroutineScope()
+            var isSharing by remember { mutableStateOf(false) }
+            val graphicsLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 32.dp, top = 0.dp)
+                contentPadding = PaddingValues(bottom = 32.dp, top = 8.dp)
             ) {
+                // === WEEKLY RECAP CARD ===
+                item(key = "weekly_recap_share") {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier.drawWithContent {
+                                graphicsLayer.record(androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt())) {
+                                    this@drawWithContent.drawContent()
+                                }
+                                drawLayer(graphicsLayer)
+                            }
+                        ) {
+                            WeeklyRecapGraphic(userData, data.totalCompletions, data.totalHabits)
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedButton(
+                            onClick = {
+                                if (isSharing) return@OutlinedButton
+                                isSharing = true
+                                coroutineScope.launch {
+                                    try {
+                                        val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                                        com.example.fewstep.util.ShareUtils.shareImage(context, bitmap)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    } finally {
+                                        isSharing = false
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().height(46.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
+                            Icon(androidx.compose.material.icons.Icons.Filled.Share, contentDescription = "Share", modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (isSharing) "Capturing..." else "Share Weekly Recap", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+
                 // Stats Row
                 item(key = "stats_row") {
                     Row(
@@ -303,7 +414,6 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                                 Spacer(Modifier.width(8.dp))
                                 Text("Top Habits", color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
-                            
                             Button(
                                 onClick = { showInsightsDialog = true },
                                 modifier = Modifier.weight(1f),
@@ -319,8 +429,8 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                     }
                 }
     
-                item(key = "ad_banner") {
-                    AdMobBanner()
+                item(key = "footer_ad") {
+                    StartIoBanner()
                 }
             }
         }

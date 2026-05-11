@@ -301,6 +301,7 @@ fun AddHabitScreen(
                                 endDate = if (isDurationEnabled) endDateMillis else null
                             )
                             Toast.makeText(context, "Mission Created Successfully! 🚀", Toast.LENGTH_LONG).show()
+                            com.startapp.sdk.adsbase.StartAppAd.showAd(context)
                             onBackClick()
                         }
                     }

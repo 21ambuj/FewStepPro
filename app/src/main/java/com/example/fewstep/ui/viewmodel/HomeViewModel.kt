@@ -112,6 +112,34 @@ class HomeViewModel(
         }
     }
 
+    fun generateHabitsFromAi(goal: String, preferences: String = "", onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val fullGoal = if (preferences.isNotBlank()) "$goal (User Preferences: $preferences)" else goal
+                val aiHabits = com.example.fewstep.util.ai.AiGoalGenerator.generateHabitsForGoal(fullGoal)
+                val allDays = listOf(
+                    Calendar.SUNDAY, Calendar.MONDAY, Calendar.TUESDAY, 
+                    Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY
+                )
+                aiHabits.forEach { aiHabit ->
+                    val habit = Habit(
+                        id = UUID.randomUUID().toString(),
+                        title = aiHabit.name,
+                        description = aiHabit.description,
+                        scheduledDays = allDays,
+                        createdAt = System.currentTimeMillis(),
+                        startDate = System.currentTimeMillis(),
+                        reminderTime = aiHabit.time
+                    )
+                    repository.insertHabit(habit)
+                }
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to generate habits")
+            }
+        }
+    }
+
     // Observe streak for milestones reactively via a dedicated Flow instead of init collection
     val milestoneEvent: Flow<Int> = userData
         .filterNotNull()

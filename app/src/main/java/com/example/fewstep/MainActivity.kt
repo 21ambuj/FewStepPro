@@ -85,6 +85,10 @@ class MainActivity : ComponentActivity() {
         MobileAds.initialize(this) { 
             android.util.Log.d("AdMob", "✅ MobileAds SDK Initialized")
         }
+
+        // Initialize Start.io Ads
+        com.startapp.sdk.adsbase.StartAppSDK.init(this, "XXXXXXXXX", true)
+        com.startapp.sdk.adsbase.StartAppAd.disableSplash() // Disable the intrusive Start.io splash by default
         
         // 🚨 CRASH CATCHER FOR DIAGNOSING HOME SCREEN CRASH 🚨
         val prefs = getSharedPreferences("crash_prefs", Context.MODE_PRIVATE)
@@ -134,6 +138,12 @@ class MainActivity : ComponentActivity() {
             }
         }
         
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACTIVITY_RECOGNITION), 102)
+            }
+        }
+        
         // Manual Dependency Injection
         val repository = HabitRepository()
         val focusRepository = com.example.fewstep.data.repository.FocusHistoryRepository()
@@ -168,6 +178,20 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                }
+                
+                // --- IN-APP UPDATE CHECK ---
+                var pendingUpdate by remember { mutableStateOf<com.example.fewstep.util.update.UpdateInfo?>(null) }
+                LaunchedEffect(Unit) {
+                    val currentVersionCode = context.packageManager
+                        .getPackageInfo(context.packageName, 0).versionCode
+                    pendingUpdate = com.example.fewstep.util.update.AppUpdateChecker.checkForUpdate(currentVersionCode)
+                }
+                if (pendingUpdate != null) {
+                    com.example.fewstep.util.update.UpdateDialog(
+                        updateInfo = pendingUpdate!!,
+                        onDismiss = { pendingUpdate = null }
+                    )
                 }
                 
                 Surface(

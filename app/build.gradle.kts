@@ -15,10 +15,10 @@ android {
 
     defaultConfig {
         applicationId = "com.example.fewstep"
-        minSdk = 31
+        minSdk = 29
         targetSdk = 36
-        versionCode = 421
-        versionName = "4.2.1"
+        versionCode = 427
+        versionName = "4.2.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -41,6 +41,12 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("com.startapp:json:1.0.2")
     }
 }
 
@@ -82,6 +88,9 @@ dependencies {
     
     // AdMob
     implementation("com.google.android.gms:play-services-ads:23.6.0")
+    
+    // Start.io Ads
+    implementation("com.startapp:inapp-sdk:5.1.0")
     
     // OkHttp for AI API
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

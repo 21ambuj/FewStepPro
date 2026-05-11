@@ -79,7 +79,7 @@ fun AboutUsScreen(onBackClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Version 4.2.1",
+                    text = "Version 4.2.7",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     modifier = Modifier.padding(bottom = 24.dp)
@@ -153,6 +153,7 @@ fun AboutSection(icon: androidx.compose.ui.graphics.vector.ImageVector, title: S
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 24.sp,
                 textAlign = TextAlign.Start
+
             )
         }
     }

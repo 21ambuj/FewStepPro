@@ -30,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoreOptionsScreen(
@@ -236,7 +237,7 @@ fun MoreOptionsScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            "Version 4.2.1",
+                            "Version 4.2.7",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             modifier = Modifier.padding(top = 8.dp)

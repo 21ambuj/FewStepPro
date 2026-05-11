@@ -21,4 +21,38 @@ object ShareUtils {
         val chooser = Intent.createChooser(intent, "Share Achievement via")
         context.startActivity(chooser)
     }
+
+    fun shareImage(context: Context, bitmap: android.graphics.Bitmap) {
+        try {
+            val cachePath = java.io.File(context.cacheDir, "images")
+            cachePath.mkdirs()
+            val file = java.io.File(cachePath, "weekly_recap.png")
+            val stream = java.io.FileOutputStream(file)
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
+            stream.close()
+
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                context.packageName + ".provider",
+                file
+            )
+
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TEXT, "Here is my FewStep Weekly Recap! 🔥 Join me: https://21ambuj.github.io/FewStep-/")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            context.startActivity(Intent.createChooser(intent, "Share Weekly Recap"))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Fallback to text share if image fails
+            val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, "Here is my FewStep Weekly Recap! 🔥 Join me: https://21ambuj.github.io/FewStep-/")
+            }
+            context.startActivity(Intent.createChooser(fallbackIntent, "Share Weekly Recap"))
+        }
+    }
 }
