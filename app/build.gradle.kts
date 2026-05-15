@@ -13,6 +13,12 @@ android {
         version = release(36)
     }
 
+    val secretsFile = rootProject.file("secrets.properties")
+    val secrets = java.util.Properties()
+    if (secretsFile.exists()) {
+        secrets.load(secretsFile.inputStream())
+    }
+
     defaultConfig {
         applicationId = "com.example.fewstep"
         minSdk = 29
@@ -21,6 +27,10 @@ android {
         versionName = "4.2.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        buildConfigField("String", "STARTAPP_ID", "\"${secrets.getProperty("STARTAPP_ID") ?: ""}\"")
+        buildConfigField("String", "ADMOB_BANNER_ID", "\"${secrets.getProperty("ADMOB_BANNER_ID") ?: ""}\"")
+        manifestPlaceholders["ADMOB_APP_ID"] = secrets.getProperty("ADMOB_APP_ID") ?: ""
     }
 
     buildTypes {
@@ -41,6 +51,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

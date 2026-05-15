@@ -13,6 +13,8 @@ import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.LoadAdError
 
+import com.example.fewstep.BuildConfig
+
 @Composable
 fun AdMobBanner(modifier: Modifier = Modifier) {
     AndroidView(
@@ -24,7 +26,7 @@ fun AdMobBanner(modifier: Modifier = Modifier) {
                 // Use Standard Banner size
                 setAdSize(AdSize.BANNER)
                 // Production Ad Unit ID
-                adUnitId = "ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ"
+                adUnitId = BuildConfig.ADMOB_BANNER_ID
                 
                 adListener = object : AdListener() {
                     override fun onAdLoaded() {

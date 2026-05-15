@@ -87,7 +87,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // Initialize Start.io Ads
-        com.startapp.sdk.adsbase.StartAppSDK.init(this, "XXXXXXXXX", true)
+        com.startapp.sdk.adsbase.StartAppSDK.init(this, BuildConfig.STARTAPP_ID, true)
         com.startapp.sdk.adsbase.StartAppAd.disableSplash() // Disable the intrusive Start.io splash by default
         
         // 🚨 CRASH CATCHER FOR DIAGNOSING HOME SCREEN CRASH 🚨
