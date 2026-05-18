@@ -25,7 +25,7 @@ Whether you are trying to read 10 pages a day or walk 10,000 steps, FewStep acts
 - **🎙️ AI Voice Reminders:** Integrates Android's Text-to-Speech (TTS) engine. The AI generates personalized, natural-sounding voice alerts for upcoming habits.
 - **📊 Offline-First Architecture:** Utilizes **Room DB** as a local cache for offline use, syncing seamlessly with **Firebase Firestore** when the internet is restored.
 - **🎮 Gamification & Dopamine Overlays:** Complete tasks to earn XP, level up from "Novice" to "Champion," and trigger visual "Streak Overlays" designed to boost user engagement.
-- **🔒 Military-Grade Security:** User data is strictly isolated using Cloud Firestore Rules, and all sensitive API keys are hidden via `secrets.properties`.
+- **🔒 Military-Grade Security:** User data is strictly isolated using Cloud Firestore Rules.
 - **🔄 Custom In-App Updates:** Bypasses standard app store limits with a proprietary GitHub-based update engine that downloads and installs APKs directly within the app.
 
 ## 🛠️ Technology Stack
