@@ -47,56 +47,13 @@ The app follows the **MVVM (Model-View-ViewModel)** architectural pattern to ens
 - **ViewModel Layer:** Manages UI state and handles business logic (e.g., `HomeViewModel`, `WalkViewModel`).
 - **Data Layer:** The **Repository Pattern** acts as a single source of truth, mediating between the local `Room` database and the remote `Firebase` cloud.
 
-## ⚙️ Setup & Installation Instructions
-
-To clone and run this project locally, follow these steps:
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/21ambuj/FewStepPro.git
-   ```
-
-2. **Add `google-services.json`:**
-   - Create a Firebase project and add an Android app.
-   - Download the `google-services.json` file and place it in the `app/` directory.
-
-3. **Configure API Keys (`secrets.properties`):**
-   - For security, API keys are NOT tracked in this repository. 
-   - Create a file named `secrets.properties` in the root directory of the project.
-   - Add your monetization keys:
-     ```properties
-     STARTAPP_ID=your_start_io_app_id
-     ADMOB_APP_ID=ca-app-pub-xxxxxxxxxxxxxxxx~yyyyyyyyyy
-     ADMOB_BANNER_ID=ca-app-pub-xxxxxxxxxxxxxxxx/zzzzzzzzzz
-     ```
-
-4. **Build & Run:**
-   - Open the project in **Android Studio (Giraffe or later)**.
-   - Sync the project with Gradle files.
-   - Run the app on an emulator or physical device (Requires Android 10 / API 29 or higher).
-
-## 📱 Screenshots
-
-*(Add your screenshots here by replacing the placeholder links)*
-
-<p align="center">
-  <img src="https://via.placeholder.com/200x400.png?text=Home+Screen" width="200"/>
-  <img src="https://via.placeholder.com/200x400.png?text=Walk+Tracker" width="200"/>
-  <img src="https://via.placeholder.com/200x400.png?text=Analytics" width="200"/>
-  <img src="https://via.placeholder.com/200x400.png?text=AI+Coach" width="200"/>
-</p>
-
-## 🔮 Future Scope
-- **Google Fit / Health Connect Integration:** For cross-platform health data syncing.
-- **Social "Community Challenges":** Allowing users to compete in step-count leaderboards.
-- **Pro Tier (RevenueCat):** Subscription model to unlock advanced AI insights and ad-free experience.
 
 ## 🤝 Contact & Deployment
-**Live App:** Available on [APKPure] and [Indus Appstore] *(Insert your links here)*.
+**Live App:** [Click here to download](https://21ambuj.github.io/FewStep-/)
 
 **Developer:** Ambuj Kumar Maurya
 - GitHub: [@21ambuj](https://github.com/21ambuj)
-- LinkedIn: [Your LinkedIn Profile URL]
+- LinkedIn: [@21ambuj](https://linkedin.com/in/21ambuj).
 
 ---
 *Built with ❤️ for productivity.*
