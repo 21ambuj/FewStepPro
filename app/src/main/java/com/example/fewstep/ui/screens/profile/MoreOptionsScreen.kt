@@ -148,22 +148,11 @@ fun MoreOptionsScreen(
             }
 
 
-
             item {
                 MoreOptionTile(
-                    title = "AI Coach",
-                    subtitle = "Get personalized guidance",
-                    icon = Icons.Default.AutoAwesome,
-                    iconColor = Color(0xFF6200EE),
-                    onClick = onAiCoachClick
-                )
-            }
-            
-            item {
-                MoreOptionTile(
-                    title = "Contact Us",
-                    subtitle = "Need help? Reach out to us",
-                    icon = Icons.Default.Email,
+                    title = "Contact Us & Report Bug",
+                    subtitle = "Queries or Bug Reports",
+                    icon = Icons.Default.SupportAgent,
                     iconColor = Color(0xFF1E88E5),
                     onClick = onContactClick
                 )
@@ -237,7 +226,7 @@ fun MoreOptionsScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            "Version 4.2.7",
+                            "Version ${com.example.fewstep.BuildConfig.VERSION_NAME}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             modifier = Modifier.padding(top = 8.dp)

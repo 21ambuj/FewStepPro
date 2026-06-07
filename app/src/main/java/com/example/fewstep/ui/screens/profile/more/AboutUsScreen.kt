@@ -79,7 +79,7 @@ fun AboutUsScreen(onBackClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Version 4.2.7",
+                    text = "Version ${com.example.fewstep.BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     modifier = Modifier.padding(bottom = 24.dp)

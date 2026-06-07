@@ -90,7 +90,7 @@ class NotificationReceiver : BroadcastReceiver() {
         )
 
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("⏰ Time for: $title")
             .setContentText("Focus: $category • Scheduled for $time")
             .setStyle(NotificationCompat.BigTextStyle()

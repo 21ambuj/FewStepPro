@@ -51,4 +51,17 @@ class NotificationsViewModel : ViewModel() {
             }
         }
     }
+
+    fun deleteNotification(notificationId: String) {
+        if (uid.isBlank()) return
+        viewModelScope.launch {
+            try {
+                firestore.collection("users").document(uid)
+                    .collection("notifications").document(notificationId)
+                    .delete().await()
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
 }

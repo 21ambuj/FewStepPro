@@ -91,7 +91,6 @@ class HomeViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DayState.TODAY)
 
 
-
     val userData: StateFlow<com.example.fewstep.data.model.User?> = repository.userData
         .stateIn(
             scope = viewModelScope,
@@ -176,7 +175,7 @@ class HomeViewModel(
 
 
     // History Recap Logic: Last 7 days with completion counts
-    val historyRecap: StateFlow<List<DaySummary>> = allLogs.map { logs ->
+    val historyRecap: StateFlow<List<DaySummary>> = combine(allHabitsRaw, allLogs) { habits, logs ->
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val dayFormat = SimpleDateFormat("EEE", Locale.getDefault())
         val cal = Calendar.getInstance()
@@ -187,17 +186,24 @@ class HomeViewModel(
             // Get day of week for this specific past date (1-7)
             val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
             
+            // Calculate 23:59:59 for this specific day to properly include habits created late
+            val calEnd = cal.clone() as Calendar
+            calEnd.set(Calendar.HOUR_OF_DAY, 23)
+            calEnd.set(Calendar.MINUTE, 59)
+            calEnd.set(Calendar.SECOND, 59)
+            val endOfDayTime = calEnd.timeInMillis
+            
             val dailyLogs = logs.filter { it.date == dateStr }
             val completedCount = dailyLogs.count { it.completed }
             
             // Count how many habits are scheduled for this specific day of week
             // IMPORTANT: Only count habits that have actually 'started' (respecting startDate or createdAt)
-            val totalForDay = allHabitsRaw.value.filter { it.scheduledDays.contains(dayOfWeek) }
+            val totalForDay = habits.filter { it.scheduledDays.contains(dayOfWeek) }
                 .count { habit ->
                     val effectiveStartTime = habit.startDate ?: habit.createdAt
                     // Compare effective start time with the end of the day being calculated (23:59:59) 
                     // to ensure it's not 'missed' if created today
-                    effectiveStartTime <= date.time || dateStr == todayStr
+                    effectiveStartTime <= endOfDayTime || dateStr == todayStr
                 }
             
             val summary = DaySummary(
@@ -241,8 +247,8 @@ class HomeViewModel(
         if (recap.size < 2) return@map false
         val yesterday = recap[recap.size - 2]
         val today = recap.last()
-        // Comeback is active IF yesterday was missed AND no habits completed today yet
-        (yesterday.totalCount > 0 && yesterday.completedCount < yesterday.totalCount) && (today.completedCount == 0)
+        // Comeback is active IF yesterday was missed entirely (completedCount == 0) AND no habits completed today yet
+        (yesterday.totalCount > 0 && yesterday.completedCount == 0) && (today.completedCount == 0)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     // Habit Stats: Total completions for each habit (Restored)

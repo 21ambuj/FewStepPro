@@ -268,7 +268,7 @@ class FocusTimerService : Service(), TextToSpeech.OnInitListener {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("$phase — $state")
             .setContentText(String.format("%02d:%02d remaining", mins, secs))
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(openIntent)
             .setOngoing(true)
             .setSilent(true)

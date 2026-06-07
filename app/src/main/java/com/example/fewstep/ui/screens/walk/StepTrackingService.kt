@@ -91,7 +91,7 @@ class StepTrackingService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Step Tracking Active")
             .setContentText("FewStep is counting your steps in the background.")
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(openIntent)
             .setOngoing(true)
             .setSilent(true)

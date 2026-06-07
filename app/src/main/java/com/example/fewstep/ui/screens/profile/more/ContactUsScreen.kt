@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,7 +51,7 @@ fun ContactUsScreen(onBackClick: () -> Unit) {
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Contact Us",
+                        text = "Contact Us & Report Bug",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onBackground
@@ -64,6 +65,7 @@ fun ContactUsScreen(onBackClick: () -> Unit) {
                 .fillMaxSize()
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -114,58 +116,115 @@ fun ContactUsScreen(onBackClick: () -> Unit) {
             var name by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser?.displayName ?: "") }
             var email by remember { mutableStateOf(FirebaseAuth.getInstance().currentUser?.email ?: "") }
             var message by remember { mutableStateOf("") }
+            var queryType by remember { mutableStateOf("") }
+            var title by remember { mutableStateOf("") }
+            var isEditingDetails by remember { mutableStateOf(false) }
             var isSubmitting by remember { mutableStateOf(false) }
             val scope = rememberCoroutineScope()
+            
+            if (isEditingDetails) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Your Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Your Email") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            } else {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Your Details", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            Text("$name • $email", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        }
+                        IconButton(onClick = { isEditingDetails = true }, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit Details", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.RadioButton(
+                        selected = queryType == "Query",
+                        onClick = { queryType = "Query" }
+                    )
+                    Text("General Query", modifier = Modifier.clickable { queryType = "Query" })
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.RadioButton(
+                        selected = queryType == "Bug",
+                        onClick = { queryType = "Bug" }
+                    )
+                    Text("Report Bug", modifier = Modifier.clickable { queryType = "Bug" })
+                }
+            }
 
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Your Name") },
+                value = title,
+                onValueChange = { if (it.length <= 50) title = it },
+                label = { Text("Title") },
+                supportingText = { Text("${title.length}/50", modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.End) },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Your Email") },
-                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
                 shape = RoundedCornerShape(12.dp)
             )
 
             OutlinedTextField(
                 value = message,
                 onValueChange = { message = it },
-                label = { Text("How can we help?") },
-                modifier = Modifier.fillMaxWidth().height(120.dp),
+                label = { Text(if (queryType == "Bug") "Describe the bug..." else "How can we help?") },
+                modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 120.dp),
+                minLines = 4,
                 shape = RoundedCornerShape(12.dp)
             )
 
             Button(
                 onClick = {
-                    if (message.isNotBlank()) {
-                        isSubmitting = true
-                        scope.launch {
-                            try {
-                                val query = UserQuery(
-                                    userId = FirebaseAuth.getInstance().currentUser?.uid ?: "",
-                                    userName = name,
-                                    userEmail = email,
-                                    query = message
-                                )
-                                FirebaseFirestore.getInstance().collection("queries").add(query).await()
-                                message = ""
-                                android.widget.Toast.makeText(context, "Feedback sent successfully! ✨", android.widget.Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                android.widget.Toast.makeText(context, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                            } finally {
-                                isSubmitting = false
-                            }
+                    isSubmitting = true
+                    scope.launch {
+                        try {
+                            val query = UserQuery(
+                                userId = FirebaseAuth.getInstance().currentUser?.uid ?: "",
+                                userName = name,
+                                userEmail = email,
+                                title = title,
+                                query = message,
+                                type = queryType
+                            )
+                            FirebaseFirestore.getInstance().collection("queries").add(query).await()
+                            message = ""
+                            title = ""
+                            android.widget.Toast.makeText(context, "Feedback sent successfully! ✨", android.widget.Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            android.widget.Toast.makeText(context, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                        } finally {
+                            isSubmitting = false
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
-                enabled = !isSubmitting && message.isNotBlank(),
+                enabled = !isSubmitting && queryType.isNotEmpty() && title.isNotBlank() && message.isNotBlank() && name.isNotBlank() && email.isNotBlank(),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 if (isSubmitting) {

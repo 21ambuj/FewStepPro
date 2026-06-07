@@ -115,6 +115,11 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
     // Use the lazy-calculated analytics data from ViewModel
     val analyticsData by viewModel.analyticsData.collectAsState()
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var isSharing by remember { mutableStateOf(false) }
+    val graphicsLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
+
     var showTopHabitsDialog by remember { mutableStateOf(false) }
     var showInsightsDialog by remember { mutableStateOf(false) }
 
@@ -144,6 +149,33 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                     fontSize = 20.sp,
                     color = MaterialTheme.colorScheme.onBackground
                 )
+                
+                Spacer(modifier = Modifier.weight(1f))
+                
+                if (analyticsData != null) {
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            if (isSharing) return@TextButton
+                            isSharing = true
+                            coroutineScope.launch {
+                                try {
+                                    val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                                    com.example.fewstep.util.ShareUtils.shareImage(context, bitmap)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    isSharing = false
+                                }
+                            }
+                        },
+                        colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(androidx.compose.material.icons.Icons.Filled.Share, contentDescription = "Share", modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(if (isSharing) "Capturing..." else "Share", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     ) { padding ->
@@ -182,64 +214,32 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
             }
         } else {
             val data = analyticsData!!
-            val context = androidx.compose.ui.platform.LocalContext.current
-            val coroutineScope = rememberCoroutineScope()
-            var isSharing by remember { mutableStateOf(false) }
-            val graphicsLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 32.dp, top = 8.dp)
-            ) {
-                // === WEEKLY RECAP CARD ===
-                item(key = "weekly_recap_share") {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Box(
-                            modifier = Modifier.drawWithContent {
-                                graphicsLayer.record(androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt())) {
-                                    this@drawWithContent.drawContent()
-                                }
-                                drawLayer(graphicsLayer)
+            Box(modifier = Modifier.fillMaxSize()) {
+                // INVISIBLE RENDERER FOR SHARING
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .drawWithContent {
+                            graphicsLayer.record(androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt())) {
+                                this@drawWithContent.drawContent()
                             }
-                        ) {
-                            WeeklyRecapGraphic(userData, data.totalCompletions, data.totalHabits)
+                            // Omit drawing to screen
                         }
-                        Spacer(modifier = Modifier.height(10.dp))
-                        OutlinedButton(
-                            onClick = {
-                                if (isSharing) return@OutlinedButton
-                                isSharing = true
-                                coroutineScope.launch {
-                                    try {
-                                        val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-                                        com.example.fewstep.util.ShareUtils.shareImage(context, bitmap)
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                    } finally {
-                                        isSharing = false
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().height(46.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            Icon(androidx.compose.material.icons.Icons.Filled.Share, contentDescription = "Share", modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(if (isSharing) "Capturing..." else "Share Weekly Recap", fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        }
-                    }
+                ) {
+                    WeeklyRecapGraphic(userData, data.totalCompletions, data.totalHabits)
                 }
 
-                // Stats Row
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(bottom = 32.dp, top = 8.dp)
+                ) {
+                    // Stats Row
                 item(key = "stats_row") {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -433,6 +433,7 @@ fun AnalyticsScreen(viewModel: HomeViewModel, onBackClick: () -> Unit) {
                     StartIoBanner()
                 }
             }
+            } // closes the Box
         }
     }
 

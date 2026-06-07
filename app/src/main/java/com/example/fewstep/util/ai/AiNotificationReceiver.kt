@@ -150,8 +150,9 @@ class AiNotificationReceiver : BroadcastReceiver() {
                     else {
                         android.util.Log.d("AiNotification", "🎉 All habits done! Showing general motivation.")
                         val message = AiNotificationEngine.getGeneralMotivation(
-                            user?.name ?: "Champion",
-                            user?.rankTitle ?: "Novice"
+                            userName = user?.name ?: "Champion",
+                            rank = user?.rankTitle ?: "Novice",
+                            hour = hour
                         )
                         showNotification(context, "FewStep Coach 🤖", message, 100)
                     }
@@ -199,7 +200,7 @@ class AiNotificationReceiver : BroadcastReceiver() {
             )
 
             val builder = NotificationCompat.Builder(context, channelId)
-                .setSmallIcon(R.mipmap.ic_launcher) 
+                .setSmallIcon(R.drawable.ic_notification) 
                 .setContentTitle(title)
                 .setContentText(message)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(message))

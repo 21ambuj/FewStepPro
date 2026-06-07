@@ -72,7 +72,7 @@ class VoiceReminderService : Service(), TextToSpeech.OnInitListener {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Voice Reminder")
             .setContentText("Speaking habit reminder...")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setSmallIcon(com.example.fewstep.R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
 

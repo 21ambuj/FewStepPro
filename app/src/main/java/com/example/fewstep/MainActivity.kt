@@ -23,8 +23,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,6 +72,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -257,6 +263,33 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    // --- MAINTENANCE MODE CHECK ---
+                    var isMaintenanceMode by remember { mutableStateOf(false) }
+                    var maintenanceEndTime by remember { mutableStateOf<Long?>(null) }
+                    
+                    LaunchedEffect(Unit) {
+                        com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("config").document("app_settings")
+                            .addSnapshotListener { snapshot, _ ->
+                                if (snapshot != null && snapshot.exists()) {
+                                    isMaintenanceMode = snapshot.getBoolean("isMaintenanceMode") ?: false
+                                    val endTimeNum = snapshot.get("maintenanceEndTime") as? Number
+                                    maintenanceEndTime = endTimeNum?.toLong()
+                                }
+                            }
+                    }
+
+                    val userEmail = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email
+                    val isAdmin = (user?.isAdmin == true) || (userEmail == "fewstep@gmail.com")
+
+                    LaunchedEffect(isMaintenanceMode, isAdmin, currentScreen, authState) {
+                        if (isMaintenanceMode && !isAdmin && authState is com.example.fewstep.ui.viewmodel.AuthState.Success && currentScreen !is Screen.Maintenance) {
+                            navigateTo(Screen.Maintenance, clearStack = true)
+                        } else if (!isMaintenanceMode && currentScreen is Screen.Maintenance) {
+                            navigateTo(Screen.Splash, clearStack = true)
+                        }
+                    }
+
+
                     BackHandler { popBack() }
 
                     val showBottomBar = currentScreen is Screen.Home || 
@@ -282,6 +315,78 @@ class MainActivity : ComponentActivity() {
                         })
                     } else {
                         Scaffold(
+                            floatingActionButton = {
+                                if (showBottomBar) {
+                                    val isDarkTheme = androidx.compose.foundation.isSystemInDarkTheme()
+                                    val glowColor = if (isDarkTheme) androidx.compose.ui.graphics.Color(0xFF00E5FF) else androidx.compose.ui.graphics.Color(0xFF6200EA)
+                                    val aiGradient = androidx.compose.ui.graphics.Brush.linearGradient(
+                                        colors = listOf(
+                                            androidx.compose.ui.graphics.Color(0xFF6200EA), 
+                                            androidx.compose.ui.graphics.Color(0xFF00B8D4)
+                                        )
+                                    )
+                                    
+                                    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                                    val waveScale by infiniteTransition.animateFloat(
+                                        initialValue = 1f,
+                                        targetValue = 1.6f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(1500, easing = LinearEasing),
+                                            repeatMode = RepeatMode.Restart
+                                        ),
+                                        label = "waveScale"
+                                    )
+                                    val waveAlpha by infiniteTransition.animateFloat(
+                                        initialValue = 0.6f,
+                                        targetValue = 0f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(1500, easing = LinearEasing),
+                                            repeatMode = RepeatMode.Restart
+                                        ),
+                                        label = "waveAlpha"
+                                    )
+
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .padding(bottom = if (currentScreen is Screen.Home) 88.dp else 16.dp)
+                                            .size(72.dp)
+                                    ) {
+                                        // The wave
+                                        Box(
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .graphicsLayer {
+                                                    scaleX = waveScale
+                                                    scaleY = waveScale
+                                                    alpha = waveAlpha
+                                                }
+                                                .background(brush = aiGradient, shape = androidx.compose.foundation.shape.CircleShape)
+                                        )
+                                        // The actual button
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .shadow(
+                                                    elevation = 12.dp, 
+                                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                                    ambientColor = glowColor,
+                                                    spotColor = glowColor
+                                                )
+                                                .background(brush = aiGradient, shape = androidx.compose.foundation.shape.CircleShape)
+                                                .clickable { navigateTo(Screen.AiCoach) }
+                                        ) {
+                                            androidx.compose.material3.Icon(
+                                                Icons.Default.AutoAwesome, 
+                                                contentDescription = "AI Coach", 
+                                                modifier = Modifier.size(24.dp),
+                                                tint = androidx.compose.ui.graphics.Color.White
+                                            )
+                                        }
+                                    }
+                                }
+                            },
                             bottomBar = {
                                 if (showBottomBar) {
                                     NavigationBar(
@@ -337,6 +442,12 @@ class MainActivity : ComponentActivity() {
                         ) { innerPadding ->
                             Box(modifier = Modifier.padding(innerPadding)) {
                                 when (currentScreen) {
+                                    is Screen.Maintenance -> {
+                                        com.example.fewstep.ui.screens.admin.MaintenanceScreen(
+                                            endTime = maintenanceEndTime,
+                                            onLogoutClick = { authViewModel.logout() }
+                                        )
+                                    }
                                     is Screen.Login -> {
                                         LoginScreen(
                                             viewModel = authViewModel,
@@ -560,4 +671,5 @@ sealed class Screen {
     object LevelRanks : Screen()
     object Streak : Screen()
     object Store : Screen()
+    object Maintenance : Screen()
 }

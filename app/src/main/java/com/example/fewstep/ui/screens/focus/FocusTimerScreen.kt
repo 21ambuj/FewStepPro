@@ -59,6 +59,7 @@ fun FocusTimerScreen(
     var timerService by remember { mutableStateOf<FocusTimerService?>(null) }
     var isBound by remember { mutableStateOf(false) }
 
+
     val connection = remember {
         object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -172,7 +173,7 @@ fun FocusTimerScreen(
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().background(bgBrush)) {
+        Box(modifier = Modifier.fillMaxSize().background(bgBrush).imePadding()) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()

@@ -60,7 +60,7 @@ fun BlockedScreen(onLogout: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
             ) {
-                Text("LOGOUT", fontWeight = FontWeight.Bold)
+                Text("LOGOUT", fontWeight = FontWeight.Bold) 
             }
         }
     }

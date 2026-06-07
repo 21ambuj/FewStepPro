@@ -6,6 +6,8 @@ import android.app.TimePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -123,8 +125,15 @@ fun EditHabitScreen(
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
                 .padding(24.dp)
+                .imePadding()
         ) {
-            OutlinedTextField(
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
                 label = { Text("Habit Title") },
@@ -280,7 +289,8 @@ fun EditHabitScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(24.dp))
+            }
 
             Button(
                 onClick = {

@@ -30,6 +30,10 @@ import com.example.fewstep.data.model.User
 import com.example.fewstep.ui.viewmodel.AiCoachViewModel
 import com.example.fewstep.ui.viewmodel.ChatMessage
 import kotlinx.coroutines.launch
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Mic
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +61,17 @@ fun AiCoachScreen(
     }
 
     val bgBrush = MaterialTheme.colorScheme.background
+
+    val speechRecognizerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val spokenText = result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            if (!spokenText.isNullOrBlank()) {
+                viewModel.sendMessage(spokenText, user, habits)
+            }
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -134,6 +149,22 @@ fun AiCoachScreen(
                         value = textInput,
                         onValueChange = { textInput = it },
                         placeholder = { Text("Ask your coach...", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
+                        trailingIcon = {
+                            if (textInput.isBlank()) {
+                                IconButton(onClick = {
+                                    val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                        putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    }
+                                    try {
+                                        speechRecognizerLauncher.launch(intent)
+                                    } catch (e: Exception) {
+                                        // Ignore if no speech recognizer app installed
+                                    }
+                                }) {
+                                    Icon(androidx.compose.material.icons.Icons.Default.Mic, contentDescription = "Voice Input", tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        },
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(28.dp)),
@@ -175,6 +206,46 @@ fun AiCoachScreen(
 
 @Composable
 fun ChatBubble(message: ChatMessage) {
+    if (message.isError) {
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Surface(
+                modifier = Modifier
+                    .widthIn(max = 320.dp)
+                    .padding(vertical = 6.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp, 
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                ),
+                shadowElevation = 0.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Default.Favorite,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .padding(top = 2.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = message.content,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
+        }
+        return
+    }
+
     val alignment = if (message.isUser) Alignment.CenterEnd else Alignment.CenterStart
     val bubbleColor = if (message.isUser) {
         MaterialTheme.colorScheme.primary

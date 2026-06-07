@@ -6,6 +6,7 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+import java.util.Properties as JavaProperties
 
 android {
     namespace = "com.example.fewstep"
@@ -14,17 +15,17 @@ android {
     }
 
     val secretsFile = rootProject.file("secrets.properties")
-    val secrets = java.util.Properties()
+    val secrets = JavaProperties()
     if (secretsFile.exists()) {
         secrets.load(secretsFile.inputStream())
     }
 
     defaultConfig {
-        applicationId = "com.example.fewstep"
+        applicationId = "com.fewstep.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 427
-        versionName = "4.2.7"
+        versionCode = 480
+        versionName = "4.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         

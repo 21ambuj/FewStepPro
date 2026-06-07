@@ -256,6 +256,9 @@ private fun startDownload(context: Context, apkUrl: String): Long {
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
             val destDir = File(context.externalCacheDir, "updates").apply { mkdirs() }
             val destFile = File(destDir, "fewstep_update.apk")
+            if (destFile.exists()) {
+                destFile.delete()
+            }
             setDestinationUri(Uri.fromFile(destFile))
             setAllowedNetworkTypes(
                 DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE

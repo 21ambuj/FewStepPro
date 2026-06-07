@@ -29,6 +29,7 @@ class HabitRepository(
         awaitClose { auth.removeAuthStateListener(listener) }
     }.distinctUntilChanged()
 
+
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val allHabits: Flow<List<Habit>> = authStateFlow.flatMapLatest { uid ->
         if (uid == null) return@flatMapLatest flowOf(emptyList<Habit>())
@@ -81,27 +82,14 @@ class HabitRepository(
 
     suspend fun deleteHabit(habit: Habit) {
         val uid = userId ?: return
-        val batch = firestore.batch()
         
-        // Delete the habit document
-        val habitRef = firestore.collection("users").document(uid).collection("habits").document(habit.id)
-        batch.delete(habitRef)
-        
-        // Find and delete all logs for this habit
         try {
-            val logsSnapshot = firestore.collection("users").document(uid).collection("logs")
-                .whereEqualTo("habitId", habit.id)
-                .get()
-                .await()
-            
-            for (doc in logsSnapshot.documents) {
-                batch.delete(doc.reference)
-            }
+            // ONLY delete the habit document, keep historical logs for UI retention and stats
+            // This prevents batch concurrency crashes during mass deletion
+            firestore.collection("users").document(uid).collection("habits").document(habit.id).delete().await()
         } catch (e: Exception) {
-            android.util.Log.e("HabitRepository", "Error fetching logs for deletion: ${e.message}")
+            android.util.Log.e("HabitRepository", "Error deleting habit: ${e.message}")
         }
-        
-        batch.commit().await()
     }
 
     suspend fun updateHabit(habit: Habit) {
@@ -157,101 +145,125 @@ class HabitRepository(
         val logsRef = firestore.collection("users").document(uid).collection("logs")
         
         return try {
-            val newStreakToReturn = firestore.runTransaction { transaction ->
-                // 1. PERFORM ALL READS FIRST
-                val logId = "${uid}_${habit.id}_$date"
-                val logRef = logsRef.document(logId)
-                val logSnapshot = transaction.get(logRef)
-                val userSnapshot = transaction.get(userRef)
-
-                // 2. CHECK CONDITIONS
-                if (logSnapshot.exists()) {
-                    val existingLog = logSnapshot.toObject(HabitLog::class.java)
-                    if (existingLog?.completed == true) {
-                        return@runTransaction null // Already completed
-                    }
+            val logId = "${uid}_${habit.id}_$date"
+            val logRef = logsRef.document(logId)
+            
+            // 1. Fetch current data (Works offline via local cache)
+            val logSnapshot = logRef.get().await()
+            if (logSnapshot.exists()) {
+                val existingLog = logSnapshot.toObject(HabitLog::class.java)
+                if (existingLog?.completed == true) {
+                    return null // Already completed
                 }
+            }
 
-                // 3. PERFORM ALL WRITES
-                val newLog = HabitLog(id = logId, habitId = habit.id, date = date, completed = true)
-                transaction.set(logRef, newLog)
+            val userSnapshot = userRef.get().await()
+            val batch = firestore.batch()
 
-                val currentXp = userSnapshot.getLong("xp") ?: 0L
-                val newXp = currentXp + xpAward // Use the passed xpAward
-                val newLevel = User.calculateLevel(newXp)
+            // 2. Setup the Log write
+            val newLog = HabitLog(id = logId, habitId = habit.id, date = date, completed = true)
+            batch.set(logRef, newLog)
 
-                val userUpdates = hashMapOf<String, Any>(
-                    "xp" to newXp,
-                    "level" to newLevel
-                )
+            // 3. Process XP and Levels
+            val currentXp = userSnapshot.getLong("xp") ?: 0L
+            val newXp = currentXp + xpAward
+            val newLevel = User.calculateLevel(newXp)
+
+            val userUpdates = hashMapOf<String, Any>(
+                "xp" to newXp,
+                "level" to newLevel
+            )
+            
+            // Backfill details if missing
+            if (userSnapshot.getString("name").isNullOrEmpty()) {
+                auth.currentUser?.displayName?.let { userUpdates["name"] = it }
+            }
+            if (userSnapshot.getString("email").isNullOrEmpty()) {
+                auth.currentUser?.email?.let { userUpdates["email"] = it }
+            }
+            if (userSnapshot.getString("uid").isNullOrEmpty()) {
+                userUpdates["uid"] = uid
+            }
+
+            batch.set(userRef, userUpdates, SetOptions.merge())
+
+            // 4. Process Streak logic
+            val currentStreak = userSnapshot.getLong("currentStreak")?.toInt() ?: 0
+            val lastUpdate = userSnapshot.getString("lastStreakUpdate") ?: ""
+            var returnedStreak: Int? = null
+
+            if (lastUpdate != date) {
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                val today = sdf.format(java.util.Date())
                 
-                // Backfill details if missing
-                if (userSnapshot.getString("name").isNullOrEmpty()) {
-                    auth.currentUser?.displayName?.let { userUpdates["name"] = it }
-                }
-                if (userSnapshot.getString("email").isNullOrEmpty()) {
-                    auth.currentUser?.email?.let { userUpdates["email"] = it }
-                }
-                if (userSnapshot.getString("uid").isNullOrEmpty()) {
-                    userUpdates["uid"] = uid
-                }
+                // Only update streak if the completion is for TODAY
+                if (date == today) {
+                    var freezesToConsume = 0
+                    val newlyFrozenDates = mutableListOf<String>()
+                    val availableFreezes = userSnapshot.getLong("availableFreezes")?.toInt() ?: 0
 
-                transaction.set(userRef, userUpdates, SetOptions.merge())
-
-                val currentStreak = userSnapshot.getLong("currentStreak")?.toInt() ?: 0
-                val lastUpdate = userSnapshot.getString("lastStreakUpdate") ?: ""
-
-                var returnedStreak: Int? = null
-
-                if (lastUpdate != date) {
-                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                    val today = sdf.format(java.util.Date())
-                    
-                    // Only update streak if the completion is for TODAY
-                    if (date == today) {
-                        var consumedFreeze = false
-                        val availableFreezes = userSnapshot.getLong("availableFreezes")?.toInt() ?: 0
-
-                        val newStreak = if (lastUpdate.isEmpty()) {
-                            1 // First time ever
-                        } else {
-                            try {
-                                val todayDate = sdf.parse(date)
-                                val lastUpdateDate = sdf.parse(lastUpdate)
-                                val diffInMillies = Math.abs(todayDate.time - lastUpdateDate.time)
-                                val diffInDays = java.util.concurrent.TimeUnit.DAYS.convert(diffInMillies, java.util.concurrent.TimeUnit.MILLISECONDS)
-                                
-                                if (diffInDays <= 3) {
-                                    // 1 day (yesterday), 2 days (missed 1), 3 days (missed 2)
+                    val newStreak = if (lastUpdate.isEmpty()) {
+                        1 // First time ever
+                    } else {
+                        try {
+                            val todayDate = sdf.parse(date)
+                            val lastUpdateDate = sdf.parse(lastUpdate)
+                            val diffInMillies = Math.abs(todayDate.time - lastUpdateDate.time)
+                            val diffInDays = java.util.concurrent.TimeUnit.DAYS.convert(diffInMillies, java.util.concurrent.TimeUnit.MILLISECONDS)
+                            
+                            when {
+                                diffInDays <= 1L -> {
                                     currentStreak + 1
-                                } else {
-                                    // Missed 3 or more days
-                                    if (availableFreezes > 0) {
-                                        consumedFreeze = true
-                                        currentStreak + 1
-                                    } else {
-                                        1 // No freezes, reset back to 1
-                                    }
                                 }
-                            } catch (e: Exception) {
-                                1
+                                diffInDays == 2L -> {
+                                    if (availableFreezes >= 1) {
+                                        freezesToConsume = 1
+                                        val cal = java.util.Calendar.getInstance()
+                                        cal.time = todayDate
+                                        cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+                                        newlyFrozenDates.add(sdf.format(cal.time))
+                                        currentStreak + 1
+                                    } else 1
+                                }
+                                diffInDays == 3L -> {
+                                    if (availableFreezes >= 2) {
+                                        freezesToConsume = 2
+                                        val cal = java.util.Calendar.getInstance()
+                                        cal.time = todayDate
+                                        cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+                                        newlyFrozenDates.add(sdf.format(cal.time))
+                                        cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+                                        newlyFrozenDates.add(sdf.format(cal.time))
+                                        currentStreak + 1
+                                    } else 1
+                                }
+                                else -> 1 
                             }
-                        }
-
-                        if (newStreak > currentStreak) {
-                            returnedStreak = newStreak
-                        }
-
-                        transaction.update(userRef, "currentStreak", newStreak)
-                        transaction.update(userRef, "lastStreakUpdate", date)
-                        if (consumedFreeze) {
-                            transaction.update(userRef, "availableFreezes", availableFreezes - 1)
+                        } catch (e: Exception) {
+                            1
                         }
                     }
+
+                    if (newStreak > currentStreak) {
+                        returnedStreak = newStreak
+                    }
+
+                    batch.update(userRef, "currentStreak", newStreak)
+                    batch.update(userRef, "lastStreakUpdate", date)
+                    if (freezesToConsume > 0) {
+                        batch.update(userRef, "availableFreezes", availableFreezes - freezesToConsume)
+                        // Add the exact skipped dates to the frozenDates array
+                        batch.update(userRef, "frozenDates", com.google.firebase.firestore.FieldValue.arrayUnion(*newlyFrozenDates.toTypedArray()))
+                    }
                 }
-                returnedStreak
-            }.await()
-            newStreakToReturn
+            }
+
+            // 5. Commit Batch
+            // We do NOT await the batch commit. This allows the function to return instantly,
+            // updating the local cache immediately so the UI responds offline!
+            batch.commit() 
+            
+            returnedStreak
         } catch (e: Exception) {
             android.util.Log.e("HabitRepository", "markHabitAsCompleted failed: ${e.message}")
             null

@@ -70,7 +70,15 @@ data class User(
     
     @get:com.google.firebase.firestore.PropertyName("availableFreezes")
     @set:com.google.firebase.firestore.PropertyName("availableFreezes")
-    var availableFreezes: Int = 0
+    var availableFreezes: Int = 0,
+    
+    @get:com.google.firebase.firestore.PropertyName("frozenDates")
+    @set:com.google.firebase.firestore.PropertyName("frozenDates")
+    var frozenDates: List<String> = emptyList(),
+    
+    @get:com.google.firebase.firestore.PropertyName("createdAt")
+    @set:com.google.firebase.firestore.PropertyName("createdAt")
+    var createdAt: Long = System.currentTimeMillis()
 ) {
     val rankTitle: String get() = when {
         level >= 101 -> "🔥 PAPA 🔥"
@@ -106,7 +114,9 @@ data class UserQuery(
     val userId: String = "",
     val userName: String = "",
     val userEmail: String = "",
+    val title: String = "",
     val query: String = "",
+    val type: String = "Query",
     val timestamp: Long = System.currentTimeMillis(),
     
     @get:com.google.firebase.firestore.PropertyName("resolved")

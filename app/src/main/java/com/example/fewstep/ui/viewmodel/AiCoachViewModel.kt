@@ -19,7 +19,8 @@ import java.io.IOException
 data class ChatMessage(
     val content: String,
     val isUser: Boolean,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val isError: Boolean = false
 )
 
 class AiCoachViewModel : ViewModel() {
@@ -56,9 +57,13 @@ class AiCoachViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val response = fetchAiResponse(text, user, habits)
-                _messages.value += ChatMessage(response, false)
+                if (response.startsWith("ERROR_MSG:")) {
+                    _messages.value += ChatMessage(response.removePrefix("ERROR_MSG:"), false, isError = true)
+                } else {
+                    _messages.value += ChatMessage(response, false)
+                }
             } catch (e: Exception) {
-                _messages.value += ChatMessage("Oops! I’m having trouble connecting right now. Let's try again in a moment. 🛠️", false)
+                _messages.value += ChatMessage("I am so sorry, my dear champion 🥺❤️ Currently this service is not available. Please come back later, I promise I'll be right here waiting for you! ✨💪", false, isError = true)
             } finally {
                 _isTyping.value = false
             }
@@ -80,7 +85,7 @@ class AiCoachViewModel : ViewModel() {
             User: $shortName. Rank: ${user?.rankTitle ?: "Novice"}.
             Habits: $habitContext.
             Goal: Reply to '$userPrompt' with intense positive energy and encouragement.
-            Rule: 1-2 short sentences. Use simple, daily-life conversational HINDI script (Devanagari) or PURE English. Avoid overly formal words. DO NOT write Hindi words using English letters. Include 1-2 emojis. max 45 words.
+            Rule: IMPORTANT! You MUST match the language of the user's prompt! If the user speaks English, reply ONLY in English. If the user speaks Hindi, reply ONLY in Hindi (Devanagari script). DO NOT write Hindi words using English letters. 1-2 short sentences, max 45 words. Include 1-2 emojis.
         """.trimIndent()
 
         // Clean prompt for path: replace special chars and encode
@@ -89,10 +94,8 @@ class AiCoachViewModel : ViewModel() {
         
         // Priority endpoints
         // 1. Pollinations (Must use path for direct text, query returns HTML docs)
-        // 2. Puter (JSON POST for maximum stability)
         val endpoints = listOf(
-            "https://text.pollinations.ai/$encodedPrompt",
-            "https://api.puter.com/puterai/openai/v1/chat/completions"
+            "https://text.pollinations.ai/$encodedPrompt"
         )
         
         for (url in endpoints) {
@@ -107,22 +110,8 @@ class AiCoachViewModel : ViewModel() {
                     val requestBuilder = Request.Builder()
                         .url(url)
                     
-                    if (url.contains("puter.com")) {
-                        // Puter needs a POST with JSON and a token
-                        val json = JSONObject().apply {
-                            put("model", "gpt-4o-mini")
-                            put("messages", JSONArray().apply {
-                                put(JSONObject().apply {
-                                    put("role", "user")
-                                    put("content", cleanPrompt)
-                                })
-                            })
-                        }
-                        requestBuilder.post(json.toString().toRequestBody(mediaType))
-                    } else {
-                        // Pollinations: MUST be GET and PATH-based for plain text
-                        requestBuilder.get().addHeader("Accept", "text/plain")
-                    }
+                    // Pollinations: MUST be GET and PATH-based for plain text
+                    requestBuilder.get().addHeader("Accept", "text/plain")
 
                     val request = requestBuilder.build()
                     var moveToFallback = false
@@ -148,7 +137,7 @@ class AiCoachViewModel : ViewModel() {
                         
                         lastErrorCode = response.code
                         if (lastErrorCode == 429) {
-                             if (url == endpoints.last()) return "Bahut jaldi mein ho? Thoda ruko, habits pe focus karo! 🧘‍♂️☕"
+                             if (url == endpoints.last()) return "ERROR_MSG:I am so sorry, my dear champion 🥺❤️ Currently my servers are taking a tiny break. Please come back later, I promise I'll be here for you! ✨💪"
                              else moveToFallback = true 
                         }
                         if (lastErrorCode in listOf(301, 302, 404, 502, 503, 504)) {
@@ -172,6 +161,6 @@ class AiCoachViewModel : ViewModel() {
             }
         }
         
-        return "Coach thoda recharge ho raha hai! Habits pe focus karo, main wapas aata hoon! 🛠️☕"
+        return "ERROR_MSG:I am so sorry, my dear champion 🥺❤️ Currently this service is not available. Please come back later, I promise I'll be right here waiting for you! ✨💪"
     }
 }

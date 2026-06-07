@@ -58,6 +58,7 @@ fun LeaderboardScreen(
             ) {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -68,6 +69,8 @@ fun LeaderboardScreen(
                 )
             }
         }
+
+
     ) { padding ->
         Box(
             modifier = Modifier

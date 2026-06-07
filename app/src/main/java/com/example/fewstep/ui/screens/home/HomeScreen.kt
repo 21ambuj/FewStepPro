@@ -110,6 +110,7 @@ fun HomeScreen(
         }
     }
 
+
     // Explicit Milestone trigger from ViewModel
     LaunchedEffect(newMilestone) {
         newMilestone?.let { milestone ->
@@ -285,17 +286,6 @@ fun HomeScreen(
         },
         floatingActionButton = {
             Column(horizontalAlignment = Alignment.End) {
-                FloatingActionButton(
-                    onClick = onAiCoachClick,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                    shape = CircleShape,
-                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
-                    modifier = Modifier.padding(bottom = 12.dp).size(48.dp)
-                ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = "AI Coach", modifier = Modifier.size(24.dp))
-                }
-                
             if (dayState != DayState.FUTURE) {
                 FloatingActionButton(
                     onClick = onAddHabitClick,
@@ -367,6 +357,8 @@ fun HomeScreen(
                                                                 color = when { 
                                                                         summary.completedCount > 0 && summary.completedCount >= summary.totalCount -> Color(0xFF10B981) 
                                                                         summary.completedCount > 0 -> Color(0xFF10B981).copy(alpha = 0.8f) 
+                                                                        user?.frozenDates?.contains(summary.dateStr) == true -> Color(0xFF64B5F6) // Snowflake Blue
+                                                                        summary.totalCount == 0 && !summary.isToday -> Color.Transparent
                                                                         summary.isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) 
                                                                         else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f) 
                                                                     }, 
@@ -376,6 +368,10 @@ fun HomeScreen(
                                                         ) {
                                                             if (summary.completedCount > 0) {
                                                                 Text("✔", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                            } else if (user?.frozenDates?.contains(summary.dateStr) == true) {
+                                                                Text("❄", color = Color.White, fontSize = 16.sp)
+                                                            } else if (summary.totalCount == 0 && !summary.isToday) {
+                                                                Text("-", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                                             } else if (summary.isToday) {
                                                                 Box(modifier = Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
                                                             }

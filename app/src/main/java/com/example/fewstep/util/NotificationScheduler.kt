@@ -94,7 +94,9 @@ object NotificationScheduler {
 
     fun cancelHabitReminder(context: Context, habitId: Int) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, NotificationReceiver::class.java)
+        val intent = Intent(context, NotificationReceiver::class.java).apply {
+            action = "com.example.fewstep.ACTION_HABIT_REMINDER"
+        }
         val pendingIntent = PendingIntent.getBroadcast(
             context,
             habitId,
@@ -135,7 +137,7 @@ object NotificationScheduler {
         )
 
         val builder = androidx.core.app.NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(com.example.fewstep.R.mipmap.ic_launcher)
+            .setSmallIcon(com.example.fewstep.R.drawable.ic_notification)
             .setContentTitle("Keep Moving! 🚶")
             .setContentText(message)
             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)

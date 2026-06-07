@@ -92,9 +92,12 @@ fun NotificationsScreen(
                 }
             }
             items(notifications, key = { it.id }) { notification ->
-                NotificationItem(notification, sdf) {
-                    viewModel.markAsRead(notification.id)
-                }
+                NotificationItem(
+                    notification = notification, 
+                    sdf = sdf,
+                    onRead = { viewModel.markAsRead(notification.id) },
+                    onDelete = { viewModel.deleteNotification(notification.id) }
+                )
             }
             }
         }
@@ -102,7 +105,7 @@ fun NotificationsScreen(
 }
 
 @Composable
-fun NotificationItem(notification: AdminNotification, sdf: SimpleDateFormat, onRead: () -> Unit) {
+fun NotificationItem(notification: AdminNotification, sdf: SimpleDateFormat, onRead: () -> Unit, onDelete: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -130,9 +133,14 @@ fun NotificationItem(notification: AdminNotification, sdf: SimpleDateFormat, onR
             }
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(notification.title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Text(sdf.format(Date(notification.timestamp)), fontSize = 10.sp, color = Color.Gray)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(notification.title, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(sdf.format(Date(notification.timestamp)), fontSize = 10.sp, color = Color.Gray)
+                    }
+                    IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                    }
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(notification.message, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)

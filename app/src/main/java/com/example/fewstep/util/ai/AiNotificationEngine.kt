@@ -81,18 +81,18 @@ object AiNotificationEngine {
         return withContext(Dispatchers.IO) {
             try {
                 val timeOfDayStr = when(hour) {
-                    in 5..11 -> "Morning (Greet with Good Morning)"
-                    in 12..16 -> "Afternoon (Greet with Good Afternoon)"
-                    in 17..20 -> "Evening (Greet with Good Evening. NEVER say Good Night)"
-                    else -> "Night (Greet with Good Night)"
+                    in 5..11 -> "Morning (MUST Greet with: सुप्रभात / Good Morning)"
+                    in 12..16 -> "Afternoon (MUST Greet with: शुभ दोपहर / Good Afternoon)"
+                    in 17..20 -> "Evening (MUST Greet with: शुभ संध्या / Good Evening. STRICT RULE: NEVER say Good Night or शुभ रात्रि here)"
+                    else -> "Night (MUST Greet with: शुभ रात्रि / Good Night)"
                 }
 
                 val prompt = """
                     Write a short, deeply emotional and highly motivational 1-sentence push notification in Simple Native Hindi (Devanagari script) for a user named $userName (Rank: $rank) who needs to do their habit: '$habitName'. 
-                    Current time context: $timeOfDayStr. Current streak: $streak days. 
+                    CRITICAL TIME RULE: It is currently $timeOfDayStr. You MUST use the exact greeting specified for this time. Do NOT use nighttime greetings during the day.
+                    Current streak: $streak days. 
                     Be highly encouraging, energetic, and inspiring. Use simple, conversational Hindi words spoken in daily life. Avoid complex or overly formal words. Keep it under 15 words. Include 1-2 emojis. 
                     CRITICAL: Write the entire notification in HINDI script (Devanagari). DO NOT use English letters for Hindi words.
-                    Example style: 'आज रुकना नहीं है, %s पूरा करो और अपने सपनों को सच करो! 🔥💪'
                     No hashtag, no intro. Pure 1-sentence push notification.
                 """.trimIndent()
                 
@@ -153,14 +153,21 @@ object AiNotificationEngine {
         }
     }
 
-    suspend fun getGeneralMotivation(userName: String = "Champion", rank: String = "Novice"): String {
+    suspend fun getGeneralMotivation(userName: String = "Champion", rank: String = "Novice", hour: Int = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)): String {
          return withContext(Dispatchers.IO) {
             try {
+                val timeOfDayStr = when(hour) {
+                    in 5..11 -> "Morning (MUST Greet with: सुप्रभात / Good Morning)"
+                    in 12..16 -> "Afternoon (MUST Greet with: शुभ दोपहर / Good Afternoon)"
+                    in 17..20 -> "Evening (MUST Greet with: शुभ संध्या / Good Evening. STRICT RULE: NEVER say Good Night or शुभ रात्रि here)"
+                    else -> "Night (MUST Greet with: शुभ रात्रि / Good Night)"
+                }
+
                 val prompt = """
                     Write a short, highly emotional and motivational 1-sentence push notification to celebrate user $userName (Rank: $rank) because they have successfully completed ALL their tasks today.
+                    CRITICAL TIME RULE: It is currently $timeOfDayStr. You MUST use the exact greeting specified for this time. Do NOT use nighttime greetings during the day.
                     CRITICAL: Write the entire notification in Simple HINDI script (Devanagari). 
                     Praise their dedication using simple, real-life words. Keep it under 12 words. Do not use English letters for Hindi words. Include 1-2 emojis.
-                    Example style: 'आज आपने कमाल कर दिया, आप सच में एक विनर हैं! 🏆🔥'
                 """.trimIndent()
                 
                 val encodedPrompt = java.net.URLEncoder.encode(prompt, "UTF-8")
