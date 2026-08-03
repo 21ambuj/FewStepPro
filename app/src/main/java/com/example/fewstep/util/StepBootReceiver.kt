@@ -27,7 +27,11 @@ class StepBootReceiver : BroadcastReceiver() {
                 }
                 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
+                    try {
+                        context.startForegroundService(serviceIntent)
+                    } catch (e: Exception) {
+                        android.util.Log.e("StepBootReceiver", "Boot foreground service start blocked: ${e.message}")
+                    }
                 } else {
                     context.startService(serviceIntent)
                 }

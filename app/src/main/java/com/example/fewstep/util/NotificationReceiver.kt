@@ -122,7 +122,11 @@ class NotificationReceiver : BroadcastReceiver() {
                 putExtra(VoiceReminderService.EXTRA_USER_NAME, displayName)
                 putExtra(VoiceReminderService.EXTRA_LOCALE, "en")
             }
-            ContextCompat.startForegroundService(context, voiceIntent)
+            try {
+            androidx.core.content.ContextCompat.startForegroundService(context, voiceIntent)
+        } catch (e: Exception) {
+            android.util.Log.e("NotificationReceiver", "Voice reminder service blocked from background: ${e.message}")
+        }
         }
     }
 }

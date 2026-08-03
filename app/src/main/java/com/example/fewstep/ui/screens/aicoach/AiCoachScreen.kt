@@ -165,6 +165,7 @@ fun AiCoachScreen(
                                 }
                             }
                         },
+
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(28.dp)),

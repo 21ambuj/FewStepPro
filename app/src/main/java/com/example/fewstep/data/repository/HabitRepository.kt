@@ -14,6 +14,7 @@ import kotlinx.coroutines.tasks.await
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.sync.withLock
 
 class HabitRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
@@ -139,7 +140,9 @@ class HabitRepository(
 
 
 
-    suspend fun markHabitAsCompleted(habit: Habit, date: String, xpAward: Long = 50L): Int? {
+    private val completionMutex = kotlinx.coroutines.sync.Mutex()
+
+    suspend fun markHabitAsCompleted(habit: Habit, date: String, xpAward: Long = 50L): Int? = completionMutex.withLock {
         val uid = userId ?: return null
         val userRef = firestore.collection("users").document(uid)
         val logsRef = firestore.collection("users").document(uid).collection("logs")
@@ -170,7 +173,7 @@ class HabitRepository(
             val newLevel = User.calculateLevel(newXp)
 
             val userUpdates = hashMapOf<String, Any>(
-                "xp" to newXp,
+                "xp" to com.google.firebase.firestore.FieldValue.increment(xpAward),
                 "level" to newLevel
             )
             
@@ -244,7 +247,9 @@ class HabitRepository(
                         }
                     }
 
-                    if (newStreak > currentStreak) {
+                    // Always return the new streak if it's > 0 (meaning a completion happened today)
+                    // This ensures the animation and haptic feedback play even after a streak reset.
+                    if (newStreak > 0) {
                         returnedStreak = newStreak
                     }
 

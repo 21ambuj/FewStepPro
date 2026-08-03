@@ -225,7 +225,11 @@ class AiNotificationReceiver : BroadcastReceiver() {
                     putExtra(VoiceReminderService.EXTRA_MESSAGE, message)
                     putExtra(VoiceReminderService.EXTRA_LOCALE, detectedLocale)
                 }
-                ContextCompat.startForegroundService(context, voiceIntent)
+                try {
+                    androidx.core.content.ContextCompat.startForegroundService(context, voiceIntent)
+                } catch (e: Exception) {
+                    android.util.Log.e("AiNotification", "Foreground service start blocked by Android 14+: ${e.message}")
+                }
             }
         }
     }
