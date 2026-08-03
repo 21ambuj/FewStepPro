@@ -24,8 +24,8 @@ android {
         applicationId = "com.fewstep.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 480
-        versionName = "4.8.0"
+        versionCode = 491
+        versionName = "4.9.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
