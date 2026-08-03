@@ -70,8 +70,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.TrendingUp
-import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.Icons.AutoMirrored.Filled.TrendingUp
+import androidx.compose.material.Icons.AutoMirrored.Filled.DirectionsWalk
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*

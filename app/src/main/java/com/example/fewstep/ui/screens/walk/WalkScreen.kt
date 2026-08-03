@@ -18,7 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.Icons.AutoMirrored.Filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Whatshot
